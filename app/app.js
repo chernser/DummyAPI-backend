@@ -8,7 +8,8 @@
 
 var express = require('express'),
     config = require('../config'),
-    mongo_db = require('mongodb');
+    mongo_db = require('mongodb'),
+    _ = require('underscore');
 
 
 var app = module.exports = express.createServer();
@@ -52,9 +53,46 @@ app.configure('production', function () {
 
 
 // API
+var DEFAULT_CALLBACK = function(res) {
+    return function(err, objects) {
+        if (err != null) {
+            console.log(err);
+            res.send(500);
+            return;
+        }
 
+        if (_.isArray(objects)) {
+            res.send(objects[0]);
+        } else {
+            res.send(objects);
+        }
 
+    };
+};
 
+app.get('/api/1/app/:app_id', function(req, res) {
+    res.send([]);
+});
+
+app.post('/api/1/app/?', function(req, res) {
+    var application = {
+        name: req.body.name
+    };
+
+    console.log("creating application: ", application);
+    app.app_storage.addApplication(application, DEFAULT_CALLBACK(res));
+});
+
+app.put('/api/1/app/:app_id', function(req, res) {
+    var application = {
+
+    };
+    app.app_storage.saveApplication(application, DEFAULT_CALLBACK(res));
+});
+
+app.delete('/api/1/app/:app_id', function(req, res) {
+    app.app_storage.deleteApplication(req.params.app_id, DEFAULT_CALLBACK(res));
+});
 
 
 // Application Startup code

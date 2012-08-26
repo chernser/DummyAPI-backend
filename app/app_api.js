@@ -1,22 +1,15 @@
 /**
- * Handles application API
+ *  app_api.js
+ *
+ *  application API implementation
+ *
+ *  Author: Sergey Chernov (chernser@outlook.com)
  */
 
-/**
- * [createApi description]
- * @param  {[type]} app_id [description]
- * @param  {[type]} port   [description]
- * @return {[type]}        [description]
- */
 module.exports.createApi = function (app_id, port) {
     return new AppApi(app_id, port);
 };
 
-/**
- * [AppApi description]
- * @param {[type]} app_id [description]
- * @param {[type]} port   [description]
- */
 function AppApi(app_id, port) {
     if (typeof app_id == 'undefined' || app_id === 0) {
         throw "Application not selected";
@@ -32,21 +25,12 @@ function AppApi(app_id, port) {
     this.init();
 }
 
-/**
- * [DEFAULT_RESOURCE_PROXY description]
- * @param {[type]} resource [description]
- */
 AppApi.prototype.DEFAULT_RESOURCE_PROXY = function (resource) {
     return resource;
 };
 
-/**
- * [init description]
- * @return {[type]} [description]
- */
 AppApi.prototype.init = function () {
     var express = require('express')
-        , routes = require('./routes')
         , socket_io = require('socket.io')
         , api = this
         , app_storage = require('./app_storage.js')(function () {
@@ -240,12 +224,6 @@ AppApi.prototype.init = function () {
 };
 
 
-/**
- * [getObjectTypeByRoute description]
- * @param  {[type]}   route_pattern [description]
- * @param  {Function} callback      [description]
- * @return {[type]}                 [description]
- */
 AppApi.prototype.getObjectTypeByRoute = function (route_pattern, callback) {
     this.app_storage.getObjectTypeByRoute(this.app_id, route_pattern, function (err, objectType) {
         if (err == 'not_found') {
@@ -257,12 +235,6 @@ AppApi.prototype.getObjectTypeByRoute = function (route_pattern, callback) {
     });
 };
 
-/**
- * [getProxy description]
- * @param  {[type]} objectType   [description]
- * @param  {[type]} defaultProxy [description]
- * @return {[type]}              [description]
- */
 function getProxy(objectType, defaultProxy) {
     if (typeof objectType.proxy_code != 'undefined') {
         var eval_result = eval(objectType.proxy_code);
@@ -275,12 +247,6 @@ function getProxy(objectType, defaultProxy) {
     }
 }
 
-/**
- * [getObjectId description]
- * @param  {[type]} id         [description]
- * @param  {[type]} objectType [description]
- * @return {[type]}            [description]
- */
 function getObjectId(id, objectType) {
     if (typeof id !== 'undefined' && id !== null && id !== '') {
         return typeof objectType.id_field != 'undefined' ? {id_field:objectType.id_field, id:id} : id;
@@ -289,11 +255,6 @@ function getObjectId(id, objectType) {
     }
 }
 
-/**
- * [getRouteInfoFromUrl parses url and extracts route patter and instance id, if present]
- * @param  {[type]} url [description]
- * @return {[type]}     [RoutePattern, IdPart]
- */
 function getRouteInfoFromUrl(url) {
     var parts = url.split('/');
     var routePattern = "/";
@@ -321,12 +282,6 @@ function getRouteInfoFromUrl(url) {
     return {route_pattern:routePattern, id:id};
 }
 
-/**
- * [handleGet description]
- * @param  {[type]}   url      [description]
- * @param  {Function} callback [description]
- * @return {[type]}            [description]
- */
 AppApi.prototype.handleGet = function (url, callback) {
     var api = this;
     var route_info = getRouteInfoFromUrl(url);
@@ -358,13 +313,6 @@ AppApi.prototype.handleGet = function (url, callback) {
     });
 };
 
-/**
- * [handlePut description]
- * @param  {[type]}   url      [description]
- * @param  {[type]}   instance [description]
- * @param  {Function} callback [description]
- * @return {[type]}            [description]
- */
 AppApi.prototype.handlePut = function (url, instance, callback) {
     var api = this;
     var route_info = getRouteInfoFromUrl(url);
@@ -387,13 +335,6 @@ AppApi.prototype.handlePut = function (url, instance, callback) {
     });
 };
 
-/**
- * [handlePost description]
- * @param  {[type]}   url      [description]
- * @param  {[type]}   instance [description]
- * @param  {Function} callback [description]
- * @return {[type]}            [description]
- */
 AppApi.prototype.handlePost = function (url, instance, callback) {
     var api = this;
     var route_info = getRouteInfoFromUrl(url);
@@ -413,12 +354,6 @@ AppApi.prototype.handlePost = function (url, instance, callback) {
     });
 };
 
-/**
- * [handleDelete description]
- * @param  {[type]}   url      [description]
- * @param  {Function} callback [description]
- * @return {[type]}            [description]
- */
 AppApi.prototype.handleDelete = function (url, callback) {
     var api = this;
     var route_info = getRouteInfoFromUrl(url);
@@ -437,10 +372,6 @@ AppApi.prototype.handleDelete = function (url, callback) {
     });
 };
 
-/**
- * [start description]
- * @return {[type]} [description]
- */
 AppApi.prototype.start = function () {
     var app = this.app;
     app.listen(this.port, function () {
@@ -448,10 +379,6 @@ AppApi.prototype.start = function () {
     });
 };
 
-/**
- * [stop description]
- * @return {[type]} [description]
- */
 AppApi.prototype.stop = function () {
     var app = this.app;
     app.close();
@@ -459,41 +386,16 @@ AppApi.prototype.stop = function () {
 
 // Constants
 
-/**
- * [HTTP_ROUTER_EXCHANGE description]
- * @type {String}
- */
 AppApi.prototype.HTTP_ROUTER_EXCHANGE = "f9.http_handler.router";
 
-/**
- * [HTTP_CONF_EXCHANGE description]
- * @type {String}
- */
 AppApi.prototype.HTTP_CONF_EXCHANGE = "f9.http_handler.http.conf";
 
-/**
- * [APP_API_EXCHANGE description]
- * @type {String}
- */
 AppApi.prototype.APP_API_EXCHANGE = "dummy.api.app_api";
 
-/**
- * [ADD_ROUTES_ACTION description]
- * @type {String}
- */
 AppApi.prototype.ADD_ROUTES_ACTION = "add_routes";
 
-/**
- * [DEL_ROUTES_ACTION description]
- * @type {String}
- */
 AppApi.prototype.DEL_ROUTES_ACTION = "del_routes";
 
-/**
- * [composeRoutesMsg description]
- * @param  {[type]} action [description]
- * @return {[type]}        [description]
- */
 AppApi.prototype.composeRoutesMsg = function (action) {
     var routes = [
         {
@@ -509,12 +411,6 @@ AppApi.prototype.composeRoutesMsg = function (action) {
     };
 };
 
-/**
- * [sendResponseMsg description]
- * @param  {[type]} attributes [description]
- * @param  {[type]} req        [description]
- * @return {[type]}            [description]
- */
 AppApi.prototype.sendResponseMsg = function (attributes, req) {
 
     var api = this;
@@ -544,107 +440,11 @@ AppApi.prototype.sendResponseMsg = function (attributes, req) {
     });
 };
 
-/**
- * [publish_routes description]
- * @return {[type]} [description]
- */
-AppApi.prototype.publish_routes = function () {
-    console.log("Publishing routes for appId: ", this.app_id);
-    var routes = this.composeRoutesMsg(this.ADD_ROUTES_ACTION);
-    var app_id = this.app_id;
-    var api = this;
-    var amqp = require('amqp');
-
-    this.amqp_connection = amqp.createConnection({url:"amqp://guest:guest@localhost:5672"}, {}, function (connection) {
-
-        console.log("amqp connected for application: ", app_id);
-        connection.exchange(api.HTTP_ROUTER_EXCHANGE, {}, function (exchange) {
-            exchange.publish("", routes, {
-                contentType:'application/json'
-            });
-            console.log("Routes ", routes, " were published");
-        });
-
-        connection.exchange(api.APP_API_EXCHANGE, {}, function (exchange) {
-            connection.queue(exchange.name + "_" + app_id, function (queue) {
-                queue.bind(api.APP_API_EXCHANGE, "app_" + app_id);
-                var opts = {};
-                queue.subscribe(opts, function (message, headers, delivereInfo) {
-                    console.log(">> message from http_handler: ", message);
-                    var path_callback = null;
-
-                    var parsed_path = message.path.split("/");
-                    var resource = parsed_path[parsed_path.length - 2];
-                    var resource_id = parsed_path[parsed_path.length - 1];
-                    var instance = message.httpBody !== '' ? JSON.parse(message.httpBody) : {};
-
-                    if (message.httpMethod == 'GET') {
-                        console.log("> resource ", resource, " id ", resource_id);
-                        api.app_storage.getObjectType(api.app_id, resource, function (objectType) {
-                            if (objectType === null || typeof objectType == 'undefined') {
-                                console.log("unknown object type: ", resource);
-                                resource = resource_id;
-                                resource_id = null;
-                            }
-
-                            api.handleGet(resource, resource_id, function (err, object) {
-                                if (err !== null) {
-                                    api.sendResponseMsg({httpStatus:400}, message);
-                                } else {
-                                    api.sendResponseMsg({httpStatus:200, body:object}, message);
-                                }
-                            });
-                        });
-
-
-                    } else if (message.httpMethod == 'POST') {
-                        api.handlePost(resource, instance, function (err, object) {
-                            api.sendResponseMsg({httpStatus:200, body:object}, message);
-                        });
-                    } else if (message.httpMethod == 'PUT') {
-                        api.handlePut(resource, instance, function (err, object) {
-                            api.sendResponseMsg({httpStatus:200, body:object}, message);
-                        });
-                    } else if (message.httpMethod == 'DELETE') {
-                        api.handleDelete(resource, resource_id, function (err, object) {
-                            api.sendResponseMsg({httpStatus:200}, message);
-                        });
-                    }
-                    // TODO: add code handling routes
-                });
-            });
-        });
-    });
-};
-
-/**
- * [unpublish_routes description]
- * @return {[type]} [description]
- */
-AppApi.prototype.unpublish_routes = function () {
-    var routes = this.composeRoutesMsg(this.DEL_ROUTES_ACTION);
-    this.amqp_connection.exchange(this.HTTP_ROUTER_EXCHANGE, {}, function (exchange) {
-        exchange.publish("", routes, {
-            contentType:'application/json'
-        });
-    });
-};
-
-/**
- * [DEFAULT_NOTIFY_PROXY description]
- * @param {[type]} event    [description]
- * @param {[type]} resource [description]
- */
 function DEFAULT_NOTIFY_PROXY(event, resource) {
     event.data = resource;
     return event;
 }
 
-/**
- * [getNotifyProxy description]
- * @param  {[type]} application [description]
- * @return {[type]}             [description]
- */
 function getNotifyProxy(application) {
     if (typeof application.notify_proxy_fun != 'undefined') {
         try {
@@ -658,12 +458,6 @@ function getNotifyProxy(application) {
     return DEFAULT_NOTIFY_PROXY;
 }
 
-/**
- * [send_event description]
- * @param  {[type]} eventName [description]
- * @param  {[type]} eventData [description]
- * @return {[type]}           [description]
- */
 AppApi.prototype.send_event = function (eventName, eventData) {
     var api = this;
 
@@ -687,29 +481,14 @@ AppApi.prototype.send_event = function (eventName, eventData) {
     });
 };
 
-/**
- * [notifyResourceChanged description]
- * @param  {[type]} resource [description]
- * @return {[type]}          [description]
- */
 AppApi.prototype.notifyResourceChanged = function (resource) {
     this.send_event('resource_updated', resource);
 };
 
-/**
- * [notifyResourceCreated description]
- * @param  {[type]} resource [description]
- * @return {[type]}          [description]
- */
 AppApi.prototype.notifyResourceCreated = function (resource) {
     this.send_event('resource_created', resource);
 };
 
-/**
- * [notifyResourceDeleted description]
- * @param  {[type]} resource [description]
- * @return {[type]}          [description]
- */
 AppApi.prototype.notifyResourceDeleted = function (resource) {
     this.send_event('resource_deleted', resource);
 };

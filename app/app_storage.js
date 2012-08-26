@@ -69,7 +69,7 @@ AppStorage.prototype = {
     create: function(collection_name, object, callback) {
 
         var storage = this;
-        storage.collection(collection_name, function(err, collection) {
+        storage.db.collection(collection_name, function(err, collection) {
             if (err != null) {
                 callback(err, null);
                 return;
@@ -164,10 +164,11 @@ AppStorage.prototype = {
             collection.findAndModify({name: sequenceName}, {}, {$inc:{ value:1}},
                 function (err, result) {
                     if (err !== null) {
-                        throw err;
+                        callback(err, null);
+                        return;
                     }
 
-                    callback(result.value);
+                    callback(null, result.value);
                 });
 
         });
@@ -183,13 +184,16 @@ AppStorage.prototype = {
 
         var storage = this;
 
-        getAppNextId(storage.APPLICATION_SEQ_NAME, function(err, app_id) {
+        storage.getNextId(storage.APPLICATION_SEQ_NAME, function(err, app_id) {
             if (err != null) {
                 callback(err, null);
                 return;
             }
 
             application.id = app_id;
+            application.object_types = [];
+            application.access_token = storage.generateAccessToken();
+            console.log("application: ", application);
             storage.create(storage.APPLICATIONS_COL, application, callback);
         });
     },
@@ -220,13 +224,16 @@ AppStorage.prototype = {
         storage.remove(storage.APPLICATIONS_COL, {id: app_id}, callback);
     },
 
+    generateAccessToken: function() {
+        return this.crypto.randomBytes(24).toString('hex');
+    },
 
     renewAccessToken:function (app_id, callback) {
 
         var storage = this;
         storage.getApplication(app_id, function (err, application) {
-            var new_token = storage.crypto.randomBytes(24).toString('hex');
-            application.access_token = new_token;
+
+            application.access_token = storage.generateAccessToken();
 
             storage.saveApplication(application, function () {
                 if (typeof callback == 'function') {

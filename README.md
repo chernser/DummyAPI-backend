@@ -18,6 +18,7 @@ Backend part of Dummy API
 *Response:*
 
     {
+        name: String, // application name
         access_token: String // application access token. Should be used to access app's API
     }
 
@@ -36,6 +37,9 @@ Backend part of Dummy API
         access_token: String // valid access token
     }
 
+*Response*
+
+    Http Status: 200
 
 ## Managing application users and user groups
 
