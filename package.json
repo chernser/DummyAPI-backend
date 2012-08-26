@@ -1,0 +1,17 @@
+{
+  "name": "dummy-rest",
+  "version": "0.0.2",
+  "private": true,
+  "dependencies": {
+    "express": "2.5.11",
+    "jade": ">= 0.0.1",
+    "socket.io": "0.9.6",
+    "twitter-bootstrap-node": "0.1.2",
+    "mongodb": "0.9.x",
+    "less": ">=1.3.0",
+    "amqp": "0.1.x"
+  },
+  "devDependencies": {
+    "grunt": "~0.3.12"
+  }
+}
