@@ -1,6 +1,6 @@
 /*
-  real cheap configuration.
-  adjust to your needs
+
+    Config.js - main configuration file for application backend
 */
 
 var config = {};
@@ -16,9 +16,10 @@ config.mongo.useNative = false;
 config.mongo.poolSize = 2;
 config.mongo.reconnect = true;
 
-/* express settings for webui
-*/
-config.webui = {};
-config.webui.port = 8000;
+/* backend settings */
+config.backend = {};
+config.backend.port = 8000; // port of express-js server
 
+
+// Export as module
 module.exports = config;

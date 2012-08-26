@@ -1,10 +1,15 @@
 /**
- * Main applications
- * Manges rest
+ *  app.js
+ *
+ *  DummyAPI backend server implementation
+ *
+ *  Author: Sergey Chernov (chernser@outlook.com)
  */
 
 var express = require('express'),
-  config = require('../config');
+    config = require('../config'),
+    mongo_db = require('mongodb');
+
 
 var app = module.exports = express.createServer();
 
@@ -49,7 +54,79 @@ app.configure('production', function () {
 // API
 
 
-// start the server
-app.listen(config.webui.port, function () {
-  console.log("Express server listening on port %d in %s mode", app.address().port, app.settings.env);
+
+
+
+// Application Startup code
+app.state = new (require('events')).EventEmitter();
+
+app.state.on('start', function() {
+
+    // Init db
+    var db_server = new mongo_db.Server(
+            config.mongo.server,
+            config.mongo.port,
+            {auto_reconnect:config.mongo.reconnect,
+             poolSize:config.mongo.poolSize}
+        );
+
+    app.db = new mongo_db.Db(config.mongo.db, db_server, {native_parser:config.mongo.useNative});
+
+    app.db.open(function(err, db) {
+
+        if (err != null) {
+            app.state.emit('db_init_error');
+            return;
+        }
+
+
+        // authenticate
+        if (config.mongo.username !== '' && config.mongo.password !== '') {
+            app.db.authenticate(config.mongo.username, config.mongo.password, function (err) {
+                if (err != null) {
+                    app.state.emit('db_init_error');
+                    return;
+                }
+                app.state.emit('db_ready');
+            });
+        } else {
+            app.state.emit('db_ready');
+        }
+    });
 });
+
+app.state.on('stop', function() {
+
+    require('process').exit();
+});
+
+app.state.on('db_init_error', function() {
+    console.log("application:Failed to init database");
+
+    app.state.emit('stop');
+});
+
+app.state.on('db_ready', function() {
+    console.log("application:db_ready");
+
+    // Init app_storage
+    app.app_storage = new (require('./app_storage')).AppStorage(config, app.db, function(err) {
+
+        app.state.emit('every_thing_ready')
+    });
+
+});
+
+app.state.on('every_thing_ready', function() {
+    console.log("application:go_go_go!");
+
+
+    // start the server
+    app.listen(config.backend.port, function () {
+        console.log("Express server listening on port %d in %s mode", app.address().port, app.settings.env);
+    });
+});
+
+
+// Start application
+app.state.emit("start");
