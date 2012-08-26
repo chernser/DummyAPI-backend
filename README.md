@@ -4,9 +4,9 @@ DummyAPI-backend
 Backend part of Dummy API
 
 
-## DummyAPI API
+# Backend API
 
-### Managing applications
+## Managing applications
 
 
 **POST /api/1/app/  - create application**
@@ -37,7 +37,7 @@ Backend part of Dummy API
     }
 
 
-### Managing application users and user groups
+## Managing application users and user groups
 
  **Note**: by default users are added to 'users' group which have read-write-create permissions
 
@@ -81,7 +81,7 @@ Backend part of Dummy API
 **DELETE /api/1/app/:app_id/user_group/:_id - delete user group**
 
 
-### Managing Object types
+## Managing Object types
 
 **POST /api/1/app/:app_id/object_type/ - create new object type**
 
@@ -113,7 +113,7 @@ Backend part of Dummy API
 
     }
 
-### Socket.IO notifications API
+## Socket.IO notifications API
 
 **GET /api/1/app/:app_id/socket_io/clients - returns list of socket.io sessions**
 
