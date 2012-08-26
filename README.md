@@ -6,7 +6,7 @@ Backend part of Dummy API
 
 ## DummyAPI API
 
-### Managing applications:
+### Managing applications
 
 
 **POST /api/1/app/  - create application**
@@ -15,7 +15,7 @@ Backend part of Dummy API
         name: String // application name
     }
 
-*Response*
+*Response:*
 
     {
         access_token: String // application access token. Should be used to access app's API
@@ -23,7 +23,7 @@ Backend part of Dummy API
 
 **POST /api/1/app/new_access_token/:id - renew application token with id == ':id'**
 
-*Response*
+*Response:*
 
     {
         access_token: String // new application access token.
@@ -48,7 +48,7 @@ Backend part of Dummy API
         password: String // user's password
     }
 
-*Response*
+*Response:*
 
     {
         _id: db id
@@ -68,7 +68,7 @@ Backend part of Dummy API
         users: [String], // users in group
     }
 
-*Response*
+*Response:*
 
     {
         _id: db id
@@ -83,13 +83,14 @@ Backend part of Dummy API
 
 ### Managing Object types
 
-#### POST /api/1/app/:app_id/object_type/ - create new object type
+**POST /api/1/app/:app_id/object_type/ - create new object type**
 
     {
         name: String // unique object type name
     }
 
-*Response*
+*Response:*
+
     {
         name: String, // unique object type name
         route: String, // url pattern for accessing current resource within application's API
@@ -104,6 +105,9 @@ Backend part of Dummy API
 
 
 **GET /api/1/app/:app_id/object_type/:name - get object type**
+
+*Response:*
+
     {
 
 
@@ -115,11 +119,11 @@ Backend part of Dummy API
 
 **POST /api/1/app/:app_id/socket_io/send_event/:session_id - sends socket.io event to session id**
 
-  **NOTE**: if session_id is missing - event is sent to all sessions
+***note***: if session_id is missing - event is sent to all sessions
 
-  {
+    {
     name: String, // event name
     data: String, // event data
-  }
+    }
 
 
