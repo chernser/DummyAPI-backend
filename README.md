@@ -22,7 +22,7 @@ Backend part of Dummy API
         access_token: String // application access token. Should be used to access app's API
     }
 
-**POST /api/1/app/new_access_token/:id - renew application token with id == ':id'**
+**POST /api/1/app/:id/new_access_token - renew application token with id == ':id'**
 
 *Response:*
 

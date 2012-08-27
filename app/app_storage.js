@@ -149,7 +149,7 @@ AppStorage.prototype = {
             }
 
             collection.remove(query_obj, function(err, result) {
-                callback(err, result);
+                callback(err, {removed: true});
             });
         });
     },
@@ -237,7 +237,7 @@ AppStorage.prototype = {
 
             storage.saveApplication(application, function () {
                 if (typeof callback == 'function') {
-                    callback(null, new_token);
+                    callback(null, {access_token: application.access_token});
                 }
             });
         });

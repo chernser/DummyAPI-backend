@@ -62,11 +62,10 @@ var DEFAULT_CALLBACK = function(res) {
         }
 
         if (_.isArray(objects)) {
-            res.send(objects[0]);
+            res.json(objects[0]);
         } else {
-            res.send(objects);
+            res.json(objects);
         }
-
     };
 };
 
@@ -91,7 +90,12 @@ app.put('/api/1/app/:app_id', function(req, res) {
 });
 
 app.delete('/api/1/app/:app_id', function(req, res) {
+    console.log("Removing application: ", req.params.app_id);
     app.app_storage.deleteApplication(req.params.app_id, DEFAULT_CALLBACK(res));
+});
+
+app.post('/api/1/app/:app_id/new_access_token', function(req, res) {
+    app.app_storage.renewAccessToken(req.params.app_id, DEFAULT_CALLBACK(res));
 });
 
 

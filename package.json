@@ -1,6 +1,6 @@
 {
-  "name": "dummy-rest",
-  "version": "0.0.2",
+  "name": "DummyAPI-backend",
+  "version": "0.0.4",
   "private": true,
   "dependencies": {
     "express": "2.5.11",

@@ -1,7 +1,3 @@
-
-
-
-
 var http = require('http'),
     assert = require('assert'),
     _ = require('underscore'),
@@ -11,24 +7,26 @@ var http = require('http'),
 
 
 var apiClient = {
-    general: function( method, url, data, cb ){
+    general:function (method, url, req_data, cb) {
 
-        var options =   {
-                host: 'localhost',
-                port: app_config.backend.port,
-                path: (api_base_path + url).replace('//', '/'),
-                method: method,
-                headers: {Cookie: cookie, 'Content-Type': 'application/json'}
-            };
+        var options = {
+            host:'localhost',
+            port:app_config.backend.port,
+            path:(api_base_path + url).replace('//', '/'),
+            method:method,
+            headers:{Cookie:cookie, 'Content-Type':'application/json'}
+        };
         var req = http.request(
             options,
 
-            function(response) {
+            function (response) {
                 var data = '';
 
-                response.on('data', function(chunk) { data += chunk.toString(); });
+                response.on('data', function (chunk) {
+                    data += chunk.toString();
+                });
 
-                response.on('end', function() {
+                var endFunction = function () {
                     assert.ok(response.statusCode != 500, "Internal Server Error");
 
 
@@ -38,19 +36,35 @@ var apiClient = {
                         response.body = data;
                     }
 
-                    cb(response);
-                });
+                    if (_.isFunction(cb)) {
+                        cb(response);
+                    }
+                };
+
+                response.on('end', endFunction);
 
             });
 
-        req.write(JSON.stringify(data));
+
+        req_data = JSON.stringify(req_data);
+        if (_.isString(req_data)) {
+            req.write(req_data);
+        }
         req.end();
 
     },
-    get: function( url, data, cb  ){ apiClient.general( 'GET', url, data, cb    )  },
-    post: function( url, data, cb ){ apiClient.general( 'POST', url, data, cb   )  },
-    put: function( url, data, cb  ){ apiClient.general( 'PUT', url, data, cb    )  },
-    del: function( url, data, cb  ){ apiClient.general( 'DELETE', url, data, cb )  }
+    get:function (url, data, cb) {
+        apiClient.general('GET', url, data, cb)
+    },
+    post:function (url, data, cb) {
+        apiClient.general('POST', url, data, cb)
+    },
+    put:function (url, data, cb) {
+        apiClient.general('PUT', url, data, cb)
+    },
+    del:function (url, data, cb) {
+        apiClient.general('DELETE', url, data, cb)
+    }
 }
 
 function assertStatus(code) {
@@ -60,64 +74,75 @@ function assertStatus(code) {
 }
 
 
-function assertJSONHead(){
-    return function(res, b, c ){
-        assert.equal( res.headers['content-type'], 'application/json; charset=utf-8' )
+function assertJSONHead() {
+    return function (res, b, c) {
+        assert.equal(res.headers['content-type'], 'application/json; charset=utf-8')
     }
 }
 
-function assertValidJSON(){
-    return function(res, b ){
+function assertValidJSON() {
+    return function (res, b) {
         // this can either be a Object or Array
-        assert.ok( typeof( res.body ) == 'object' )
+        assert.ok(typeof( res.body ) == 'object')
         //assert.isObject( res.body)
     }
 }
 
-
 /* Tests */
-
-suite('application create/update/delete', function() {
+suite('application create/update/delete', function () {
 
     var APP_NAME = "TestApplication";
 
-    test('new applicaiton should be created', function(done) {
-        apiClient.post('/app/', {name: APP_NAME}, function(response) {
-            var application = response.body;
+    var application = null;
 
-            assert.ok(application.name == APP_NAME);
-            assert.ok(_.isString(application.access_token));
-            assert.ok(_.isNumber(application.id));
+    beforeEach(function (done) {
+        apiClient.post('/app/', {name:APP_NAME}, function (response) {
+            application = response.body;
+            done();
+        });
+    });
+
+    afterEach(function (done) {
+        apiClient.del('/app/' + application.id, null, function () {
+            done()
+        });
+
+    });
+
+    test('new applicaiton should be created', function () {
+        assert.ok(application.name == APP_NAME);
+        assert.ok(_.isString(application.access_token));
+        assert.ok(_.isNumber(application.id));
+
+
+    });
+
+    test('updated application should be returned', function (done) {
+
+
+        apiClient.put('/app/' + application.id, application, function (response) {
+
+            assert.ok(response.statusCode == 200 || response.statusCode == 204, "Server returned error: " + response.statusCode);
 
             done();
         });
-
     });
 
-    test('updated application should be returned', function(done) {
-        apiClient.post('/app/', {name: APP_NAME}, function(response) {
-            var application = response.body;
 
-            apiClient.put('/app/' + application.id, application, function(response) {
-                assert.ok(response.statusCode == 200 || response.statusCode == 204, "Server returned error: " + response.statusCode);
+    test('renew applications access token', function (done) {
 
-                done();
-            });
+        var access_token = application.access_token;
+        var app_id = application.id;
+
+        apiClient.post('/app/' + app_id + '/new_access_token', {access_token:access_token}, function (response) {
+
+
+            assert(response.body.access_token, "Access token is undefined");
+            assert(access_token != response.body.access_token, "Access token was not changed");
+
+            done();
+
         });
-
-    });
-
-    test('application should be removed', function(done) {
-        apiClient.post('/app/', {name: APP_NAME}, function(response) {
-            var application = response.body;
-
-            apiClient.put('/app/' + application.id, application, function(response) {
-                assert.ok(response.statusCode == 200 || response.statusCode == 204, "Server returned error: " + response.statusCode);
-
-                done();
-            });
-        });
-
     });
 
 
