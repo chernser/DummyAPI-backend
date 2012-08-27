@@ -87,6 +87,8 @@ Backend part of Dummy API
 
 ## Managing Object types
 
+**GET /api/1/app/:app_id/object_type/ - list all object types**
+
 **POST /api/1/app/:app_id/object_type/ - create new object type**
 
     {
@@ -97,14 +99,17 @@ Backend part of Dummy API
 
     {
         name: String, // unique object type name
-        route: String, // url pattern for accessing current resource within application's API
-        proxy_function, // proxy function used for processing each returned instance
+        route_pattern: String, // url pattern for accessing current resource within application's API
+        proxy_code: String, // proxy function code used for processing each returned instance
+        id_field: String // id field name
     }
 
 **PUT /api/1/app/:app_id/object_type/:name - update object type**
 
     {
-        // any number of existing object type resource fields that should be changed
+        route_pattern: String, // changes route pattern.
+        proxy_code: String, // changes code of proxy function
+        id_field: String, // changes name of id field
     }
 
 
@@ -113,8 +118,8 @@ Backend part of Dummy API
 *Response:*
 
     {
-
-
+        _id: String, // DB generated id
+        // also see POST method
     }
 
 ## Socket.IO notifications API
@@ -126,8 +131,45 @@ Backend part of Dummy API
 ***note***: if session_id is missing - event is sent to all sessions
 
     {
-    name: String, // event name
-    data: String, // event data
+        name: String, // event name
+        data: String, // event data
     }
 
 
+# Application API
+
+Application API uses 8001 port and has common prefix '/api/1/'
+
+Each request to application's resource should contain header 'Access-Token' with your application token.
+If you are using user base authendication, header 'User-Access-Token' also should be added to identify user.
+
+Query parameters 'access_token' and 'user_token' can be used insted, also.
+
+## Object instance manipulations
+
+**GET /api/1/:object_type_name/:id - get resource of object type name == ':object_type_name' and id == ':id'**
+
+Response will contain any fields you have configured via object structure and proxy function of object type
+
+**POST /api/1/:object_type_name/ - create new instance of object type name == ':object_type_name'**
+
+Response will contain fields of stored instance plus '_id' field with db generated id.
+
+**PUT /api/1/:object_type_name/:id - update instance of object of type name == ':object_type_name' and id == ':id'**
+
+Response will contain saved instance
+
+**DELETE /api/1/:object_type_name/:id - removed instance of object of type name == ':object_type_name' and id == ':id'**
+
+Response
+
+    {
+        removed: true
+    }
+
+**Note:** 'id' field of instances is configurable via object type management. By default '_id' is used, but you can make
+ any field 'id' one. Also note, all instances are uniqualy only by db generated '_id'.
+
+## Socket.io Notifications
+
+**TBD**

@@ -32,7 +32,7 @@ function fixApplicationFields(application) {
  *
  * @class AppStorage
  */
-var AppStorage = function (config, db, callback) {
+var AppStorage = function (config, db) {
 
     // Imports
     this.mongo_db = require('mongodb');
@@ -42,21 +42,13 @@ var AppStorage = function (config, db, callback) {
     // external
     this.db = db;
 
-    var ownCallback = function () {
-        if (typeof callback == 'function') {
-            callback();
-        }
-    };
-
     this.db.ensureIndex('applications', {id:1}, {unique:true});
     this.db.ensureIndex('sequences', {name:1}, {unique:true});
     this.db.collection('sequences', function (err, collection) {
-        collection.insert({name:'appSeqNumber', value:1});
-
-
+        collection.insert({name:AppStorage.prototype.APPLICATION_SEQ_NAME, value:1});
+        collection.insert({name:AppStorage.prototype.USER_SEQ_NAME, value:1});
+        collection.insert({name:AppStorage.prototype.USER_GROUP_SEQ_NAME, value:1});
     });
-
-    ownCallback();
 
     return this;
 };
@@ -66,16 +58,21 @@ module.exports.AppStorage = AppStorage;
 
 AppStorage.prototype = {
 
-    create: function(collection_name, object, callback) {
+    dummyCallback: function() {},
+
+    create:function (collection_name, object, callback) {
+        if (typeof callback != 'function') {
+            callback = this.dummyCallback;
+        }
 
         var storage = this;
-        storage.db.collection(collection_name, function(err, collection) {
+        storage.db.collection(collection_name, function (err, collection) {
             if (err != null) {
                 callback(err, null);
                 return;
             }
 
-            collection.insert(object, function(err, docs ) {
+            collection.insert(object, {safe: true}, function (err, docs) {
                 if (err != null) {
                     callback(err, null);
                     return;
@@ -87,37 +84,45 @@ AppStorage.prototype = {
 
     },
 
-    get: function(collection_name, query_obj, callback) {
+    get:function (collection_name, query_obj, callback) {
+        if (typeof callback != 'function') {
+            callback = this.dummyCallback;
+        }
+
 
         var storage = this;
-        storage.db.collection(collection_name, function(err, collection) {
+        storage.db.collection(collection_name, function (err, collection) {
             if (err != null) {
                 callback(err, null);
                 return;
             }
 
-            collection.find(query_obj, function(err, cursor) {
+            collection.find(query_obj, function (err, cursor) {
                 if (err != null) {
                     callback(err, null);
                     return;
                 }
 
-                cursor.toArray(function(err, items) {
+                cursor.toArray(function (err, items) {
                     callback(err, items);
                 });
             })
         });
     },
 
-    put: function(collection_name, query_obj, object, callback) {
+    put:function (collection_name, query_obj, object, callback) {
+        if (typeof callback != 'function') {
+            callback = this.dummyCallback;
+        }
+
         var storage = this;
-        storage.db.collection(collection_name, function(err, collection) {
+        storage.db.collection(collection_name, function (err, collection) {
             if (err != null) {
                 callback(err, null);
                 return;
             }
 
-            collection.update(query_obj, object, {safe: true}, function(err, result) {
+            collection.update(query_obj, object, {safe:true}, function (err, result) {
                 if (err != null) {
                     callback(err, null);
                     return;
@@ -140,28 +145,32 @@ AppStorage.prototype = {
 
     },
 
-    remove: function(collection_name, query_obj, callback) {
+    remove:function (collection_name, query_obj, callback) {
+        if (typeof callback != 'function') {
+            callback = this.dummyCallback;
+        }
+
         var storage = this;
-        storage.db.collection(collection_name, function(err, collection) {
+        storage.db.collection(collection_name, function (err, collection) {
             if (err != null) {
                 callback(err, null);
                 return;
             }
 
-            collection.remove(query_obj, function(err, result) {
-                callback(err, {removed: true});
+            collection.remove(query_obj, function (err, result) {
+                callback(err, {removed:true});
             });
         });
     },
 
 
-    getNextId: function(sequenceName, callback) {
-        this.db.collection('sequences', function(err, collection) {
+    getNextId:function (sequenceName, callback) {
+        this.db.collection('sequences', function (err, collection) {
             if (err != null) {
                 callback(err, null);
                 return;
             }
-            collection.findAndModify({name: sequenceName}, {}, {$inc:{ value:1}},
+            collection.findAndModify({name:sequenceName}, {}, {$inc:{ value:1}},
                 function (err, result) {
                     if (err !== null) {
                         callback(err, null);
@@ -175,16 +184,20 @@ AppStorage.prototype = {
     },
 
 
-
     // Constatns
-    APPLICATIONS_COL: 'applications',
-    APPLICATION_SEQ_NAME: 'appSeqNumber',
+    APPLICATIONS_COL:'applications',
+    APPLICATION_SEQ_NAME:'appSeqNumber',
+    USER_COL:'application_users',
+    USER_GROUP_COL:'application_user_groups',
+    USER_SEQ_NAME:'userSeqNumber',
+    USER_GROUP_SEQ_NAME:'userGroupSeqNumber',
+
 
     addApplication:function (application, callback) {
 
         var storage = this;
 
-        storage.getNextId(storage.APPLICATION_SEQ_NAME, function(err, app_id) {
+        storage.getNextId(storage.APPLICATION_SEQ_NAME, function (err, app_id) {
             if (err != null) {
                 callback(err, null);
                 return;
@@ -203,7 +216,7 @@ AppStorage.prototype = {
 
         application.id = new Number(application.id).valueOf();
 
-        storage.put(storage.APPLICATIONS_COL, {id:application.id}, application, function(err, saved) {
+        storage.put(storage.APPLICATIONS_COL, {id:application.id}, application, function (err, saved) {
             callback(err, saved);
         });
     },
@@ -211,9 +224,10 @@ AppStorage.prototype = {
 
     getApplication:function (app_id, callback) {
         app_id = new Number(app_id).valueOf();
-
         var storage = this;
-        storage.get(storage.APPLICATIONS_COL, {id:app_id}, callback);
+        storage.get(storage.APPLICATIONS_COL, {id:app_id}, function(err, items) {
+                callback(err, items != null && items.length > 0 ? items[0] : null);
+        });
     },
 
 
@@ -221,10 +235,15 @@ AppStorage.prototype = {
         app_id = new Number(app_id).valueOf();
 
         var storage = this;
-        storage.remove(storage.APPLICATIONS_COL, {id: app_id}, callback);
+        storage.remove(storage.APPLICATIONS_COL, {id:app_id}, function() {
+            storage.remove(storage.USER_COL, {app_id: app_id});
+            storage.remove(storage.USER_GROUP_COL, {app_id: app_id});
+            callback();
+        });
+
     },
 
-    generateAccessToken: function() {
+    generateAccessToken:function () {
         return this.crypto.randomBytes(24).toString('hex');
     },
 
@@ -233,14 +252,129 @@ AppStorage.prototype = {
         var storage = this;
         storage.getApplication(app_id, function (err, application) {
 
-            application.access_token = storage.generateAccessToken();
+
+            var new_access_token = storage.generateAccessToken();
+            storage.updateAppAccessTokens(app_id, application.access_token, new_access_token);
+            application.access_token = new_access_token;
 
             storage.saveApplication(application, function () {
+
                 if (typeof callback == 'function') {
-                    callback(null, {access_token: application.access_token});
+                    callback(null, {access_token:application.access_token});
                 }
             });
         });
+    },
+
+    application_access_tokens: {},
+
+    updateAppAccessTokens: function(app_id, old_access_token, access_token) {
+        try {
+            delete this.application_access_tokens[old_access_token];
+        } catch (e) {
+        }
+
+        this.application_access_tokens[access_token] = app_id;
+    },
+
+    getAppIdByAccessToken: function(access_token, callback)  {
+        var app_id = this.application_access_tokens[access_token];
+        if (typeof  app_id == 'number' ) {
+            callback(null, app_id);
+        } else {
+            var storage = this;
+            storage.get(storage.APPLICATIONS_COL, {access_token: access_token}, function(err, items) {
+                if (err != null) {
+                    callback(err, null);
+                    return;
+                }
+
+                var app_id = items != null && items.length > 0 ? items[0].id : null;
+                for (var index in storage.application_access_tokens) {
+                    if (storage.application_access_tokens[index] == app_id) {
+                        storage.application_access_tokens[index] = null;
+                    }
+                }
+
+                storage.application_access_tokens[access_token] == app_id;
+                callback(null, app_id);
+            });
+        }
+
+    },
+
+    createUserOrGroupQuery:function (app_id, user_or_group_id) {
+        var query = { };
+
+
+        var tmp_app_id = parseInt(app_id);
+        if (tmp_app_id != NaN) {
+            query.app_id = tmp_app_id;
+        }
+
+        var tmp_user_or_group_id = parseInt(user_or_group_id);
+        if (tmp_user_or_group_id != NaN) {
+            query.id = tmp_user_or_group_id;
+        }
+
+        return query;
+    },
+
+    addUser:function (app_id, user, callback) {
+        var storage = this;
+        storage.getNextId(storage.USER_SEQ_NAME, function(err, id) {
+            user.id = id;
+            storage.create(storage.USER_COL, user, callback);
+        });
+
+    },
+
+    getUser:function (app_id, user_id, callback) {
+        var storage = this;
+        var query = storage.createUserOrGroupQuery(app_id, user_id);
+        storage.get(this.USER_COL, query, callback);
+    },
+
+    saveUser:function (app_id, user, callback) {
+        var storage = this;
+
+        var query = storage.createUserOrGroupQuery(app_id, user.id);
+        storage.put(this.USER_COL, query, user, callback);
+    },
+
+    deleteUser:function (app_id, user_id, callback) {
+        var storage = this;
+        var query = storage.createUserOrGroupQuery(app_id, user_id);
+        storage.delete(this.USER_COL, query, callback);
+    },
+
+    addUserGroup:function (app_id, user_group, callback) {
+        var storage = this;
+
+        storage.getNextId(this.USER_GROUP_SEQ_NAME, function(err, id) {
+
+            user_group.id = id;
+            storage.create(this.USER_GROUP_COL, user_group, callback);
+        })
+
+    },
+
+    getUserGroup:function (app_id, user_group_id, callback) {
+        var storage = this;
+        var query = storage.createUserOrGroupQuery(app_id, user_group_id);
+        storage.get(this.USER_GROUP_COL, query, callback);
+    },
+
+    saveUserGroup: function(app_id, user_group, callback) {
+        var storage = this;
+        var query = storage.createUserOrGroupQuery(app_id, user_group.id);
+        storage.put(this.USER_GROUP_COL, query, user_group, callback);
+    },
+
+    deleteUserGroup:function (app_id, user_group_id, callback) {
+        var storage = this;
+        var query = storage.createUserOrGroupQuery(app_id, user_group_id);
+        storage.remove(this.USER_GROUP_COL, query, callback);
     },
 
     addObjectType:function (app_id, objectType, callback) {
@@ -251,6 +385,10 @@ AppStorage.prototype = {
 
         if (typeof objectType.route_pattern != 'string') {
             objectType.route_pattern = '/' + objectType.name + '/{id}/';
+        }
+
+        if (typeof objectType.id_field != 'string') {
+            objectType.id_field = '_id';
         }
 
         var storage = this;
@@ -284,28 +422,32 @@ AppStorage.prototype = {
                 return;
             }
 
-            for (var index in application.objtypes) {
-                if (application.objtypes[index].name == objectTypeName) {
-                    if (typeof callback == 'function') {
-                        callback(null, application.objtypes[index]);
+            if (objectTypeName != '*') {
+                for (var index in application.objtypes) {
+                    if (application.objtypes[index].name == objectTypeName) {
+                        if (typeof callback == 'function') {
+                            callback(null, application.objtypes[index]);
+                        }
+                        return;
                     }
-                    return;
                 }
+                callback('not_found', null);
+            } else {
+                callback(null, application.object_types);
             }
-            callback('not_found', null);
+
         });
     },
 
 
     getObjectTypeByRoute:function (app_id, routePattern, callback) {
         var storage = this;
-        storage.getApplication(app_id, function (application) {
+        storage.getApplication(app_id, function (err, application) {
             if (typeof application == 'undefined') {
                 callback('not_found', null);
                 return;
             }
 
-            console.log(application);
             for (var index in application.objtypes) {
                 if (application.objtypes[index].route_pattern == routePattern) {
                     if (typeof callback == 'function') {
@@ -326,8 +468,15 @@ AppStorage.prototype = {
 
             var doUpdate = false;
             for (var index in application.objtypes) {
+
                 if (application.objtypes[index].name == objectType.name) {
-                    application.objtypes[index] = objectType;
+                    var exiting = application.objtypes[index];
+
+                    // Copy allowed to change fields
+                    exiting.route_pattern = objectType.route_pattern;
+
+                    // finally copy existing to response object
+                    objectType = exiting;
                     doUpdate = true;
                     break;
                 }
@@ -445,7 +594,7 @@ AppStorage.prototype = {
         var query = this.createInstanceQuery(instance_id, object_type_name);
 
         var storage = this;
-        storage.get(collection_name, query, function(err, items) {
+        storage.get(collection_name, query, function (err, items) {
             if (err != null) {
                 callback(err, null);
                 return;

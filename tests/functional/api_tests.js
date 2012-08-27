@@ -7,15 +7,16 @@ var http = require('http'),
 
 
 var apiClient = {
-    general:function (method, url, req_data, cb) {
+    general:function (method, url, port, req_data, cb) {
 
         var options = {
             host:'localhost',
-            port:app_config.backend.port,
+            port:port,
             path:(api_base_path + url).replace('//', '/'),
             method:method,
             headers:{Cookie:cookie, 'Content-Type':'application/json'}
         };
+
         var req = http.request(
             options,
 
@@ -28,6 +29,7 @@ var apiClient = {
 
                 var endFunction = function () {
                     assert.ok(response.statusCode != 500, "Internal Server Error");
+                    assert.ok(response.statusCode != 401, "Unathorized");
 
 
                     if (data.length > 0 && response.headers['content-type'].indexOf('application/json') >= 0) {
@@ -46,26 +48,45 @@ var apiClient = {
             });
 
 
-        req_data = JSON.stringify(req_data);
-        if (_.isString(req_data)) {
-            req.write(req_data);
+        if (req_data != null) {
+            req_data = JSON.stringify(req_data);
+            if (_.isString(req_data)) {
+                req.write(req_data);
+            }
         }
         req.end();
 
     },
     get:function (url, data, cb) {
-        apiClient.general('GET', url, data, cb)
+        apiClient.general('GET', url, app_config.backend.port, data, cb)
     },
     post:function (url, data, cb) {
-        apiClient.general('POST', url, data, cb)
+        apiClient.general('POST', url, app_config.backend.port, data, cb)
     },
     put:function (url, data, cb) {
-        apiClient.general('PUT', url, data, cb)
+        apiClient.general('PUT', url, app_config.backend.port, data, cb)
     },
     del:function (url, data, cb) {
-        apiClient.general('DELETE', url, data, cb)
+        apiClient.general('DELETE', url, app_config.backend.port, data, cb)
     }
 }
+
+var appClient = {
+
+    get:function (url, data, cb) {
+        apiClient.general('GET', url, app_config.app_api.port, data, cb)
+    },
+    post:function (url, data, cb) {
+        apiClient.general('POST', url, app_config.app_api.port, data, cb)
+    },
+    put:function (url, data, cb) {
+        apiClient.general('PUT', url, app_config.app_api.port, data, cb)
+    },
+    del:function (url, data, cb) {
+        apiClient.general('DELETE', url, app_config.app_api.port, data, cb)
+    }
+}
+
 
 function assertStatus(code) {
     return function (res, b, c) {
@@ -88,10 +109,11 @@ function assertValidJSON() {
     }
 }
 
+
+var APP_NAME = "TestApplication";
+
 /* Tests */
 suite('application create/update/delete', function () {
-
-    var APP_NAME = "TestApplication";
 
     var application = null;
 
@@ -106,7 +128,6 @@ suite('application create/update/delete', function () {
         apiClient.del('/app/' + application.id, null, function () {
             done()
         });
-
     });
 
     test('new applicaiton should be created', function () {
@@ -144,6 +165,68 @@ suite('application create/update/delete', function () {
 
         });
     });
+});
+
+suite("user and user group manipulations", function () {
+    var application = null;
+    var credentials = {
+        user_name:"tester",
+        password:"password"
+    };
+    var user = null;
+
+    beforeEach(function (done) {
+        var createUser = function (done) {
+            apiClient.post('/app/' + application.id + '/user/', credentials, function (response) {
+                user = response.body;
+                done();
+            });
+        };
+
+        apiClient.post('/app/', {name:APP_NAME}, function (response) {
+            application = response.body;
+            createUser(done);
+        });
+    });
+
+    afterEach(function (done) {
+        apiClient.del('/app/' + application.id, null, function () {
+            done();
+        });
+    });
+
+    test('add user and get it by id', function () {
+        assert.ok(user.user_name == credentials.user_name, 'User name doesn\'t match');
+        assert.ok(user.id, 'Id field is missing');
+    });
+
+});
 
 
+suite('basic test of app_api', function () {
+
+    var application = null;
+
+    beforeEach(function (done) {
+        apiClient.post('/app/', {name:APP_NAME}, function (response) {
+            application = response.body;
+            done();
+        });
+    });
+
+    afterEach(function (done) {
+        apiClient.del('/app/' + application.id, null, function () {
+            done()
+        });
+    });
+
+    test('get root api resource', function (done) {
+        appClient.get('?access_token=' + application.access_token, null, function (response) {
+            var api_def = response.body;
+            assert.ok(api_def.resources, "No resources field");
+            done();
+
+        });
+
+    });
 });

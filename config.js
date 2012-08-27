@@ -20,6 +20,9 @@ config.mongo.reconnect = true;
 config.backend = {};
 config.backend.port = 8000; // port of express-js server
 
+/* application api settings */
+config.app_api = {};
+config.app_api.port = 8001; // port of app-api express-js server
 
 // Export as module
 module.exports = config;
