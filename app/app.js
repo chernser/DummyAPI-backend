@@ -102,21 +102,21 @@ app.post('/api/1/app/:app_id/new_access_token', function (req, res) {
 // Users and gorup management
 app.post('/api/1/app/:app_id/user/?', function (req, res) {
     var user = {
-        user_name: req.body.user_name,
-        password: req.body.password
+        user_name:req.body.user_name,
+        password:req.body.password
     };
     app.app_storage.addUser(req.params.app_id, user, DEFAULT_CALLBACK(res));
 });
 
-app.post('/api/1/app/:app_id/user/:id/new_access_token/?', function(req, res) {
+app.post('/api/1/app/:app_id/user/:id/new_access_token/?', function (req, res) {
     app.app_storage.renewUserAccessToken(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res));
 });
 
-app.get('/api/1/app/:app_id/user/:id?', function(req, res) {
+app.get('/api/1/app/:app_id/user/:id?', function (req, res) {
     app.app_storage.getUser(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res));
 });
 
-app.put('/api/1/app/:app_id/user/:id', function(req, res) {
+app.put('/api/1/app/:app_id/user/:id', function (req, res) {
     var user = {};
 
     if (typeof req.body.groups == 'array') {
@@ -126,23 +126,24 @@ app.put('/api/1/app/:app_id/user/:id', function(req, res) {
     app.app_storage.saveUser(req.params.app_id, user, DEFAULT_CALLBACK(res));
 });
 
-app.delete('/api/1/app/:app_id/user/:id', function(req, res) {
+app.delete('/api/1/app/:app_id/user/:id', function (req, res) {
     app.app_storage.deleteUser(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res));
 });
 
-app.get('/api/1/app/:app_id/user_group/:id?', function(req, res) {
+app.get('/api/1/app/:app_id/user_group/:id?', function (req, res) {
     app.app_storage.getUserGroup(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res));
 });
 
 // Object types
 app.get('/api/1/app/:app_id/object_type/:name?', function (req, res) {
-    app.app_storage.getObjectType(req.params.app_id, req.params.name != null? req.params.name : '*', DEFAULT_CALLBACK(res));
+    app.app_storage.getObjectType(req.params.app_id, req.params.name != null ? req.params.name : '*', DEFAULT_CALLBACK(res));
 });
 
 app.post('/api/1/app/:app_id/object_type/?', function (req, res) {
     var object_type = {
         name:req.body.name,
-        route_pattern:req.body.route_pattern
+        route_pattern:req.body.route_pattern,
+        id_field: req.body.id_field
     };
     app.app_storage.addObjectType(req.params.app_id, object_type, DEFAULT_CALLBACK(res));
 });
@@ -161,6 +162,22 @@ app.delete('/api/1/app/:app_id/object_type/:name', function (req, res) {
 });
 
 // Object instance management
+app.post('/api/1/app/:app_id/object_type/:name/?', function (req, res) {
+    app.app_storage.addObjectInstace(req.params.app_id, req.params.name, req.body, DEFAULT_CALLBACK(res));
+});
+
+app.get('/api/1/app/:app_id/object_type/:name/:id?', function (req, res) {
+    app.app_storage.getObjectInstances(req.params.app_id, req.params.name, req.params.id, DEFAULT_CALLBACK(res));
+});
+
+app.put('/api/1/app/:app_id/object_type/:name/:id', function(req, res) {
+    app.app_storage.saveObjectInstance(req.params.app_id, req.params.name, req.params.id, req.body, DEFAULT_CALLBACK(res));
+});
+
+app.delete('/api/1/app/:app_id/object_type/:name/:id', function(req, res) {
+    app.app_storage.deleteObjectInstance(req.params.app_id, req.params.name, req.params.id, DEFAULT_CALLBACK(res));
+});
+
 
 // === Application Startup Logic ====
 app.state = new (require('events')).EventEmitter();

@@ -3,7 +3,6 @@ DummyAPI-backend
 
 Backend part of Dummy API
 
-
 # Backend API
 
 ## Managing applications
@@ -144,6 +143,40 @@ Each request to application's resource should contain header 'Access-Token' with
 If you are using user base authendication, header 'User-Access-Token' also should be added to identify user.
 
 Query parameters 'access_token' and 'user_token' can be used insted, also.
+
+## Authentication
+
+Currently simple authentication is supported.
+
+### Simple Token Authentication
+
+**POST /api/1/simple_token_auth/ - create new forever valid token based session**
+
+    {
+        user_name: String, // name of user created for current application
+        password: String, // valid password
+        token_cookie: String, // [optional] name of cookie which holds token. Default: 'user_token'
+    }
+
+*Response*
+
+    {
+        access_token: String, // user access token
+        user_id: Number, // user id identified by this
+    }
+
+Response also contains cookie 'user_toke' (or whatever configured by request) with user's access token.
+
+### Ugly GET Authentication
+
+**GET /api/1/ugly_get_auth - get user by user name and password**
+
+**Query string:** *?username=$user_name&password=$password&resource=$resource&resource_id=$id*
+    $user_name and $password - are just user credentials
+    $resource - name of object type that should be returned in response
+    $id - id of requesting resource. If it missing - user id will be used
+    If no resource found - 404 is returned
+
 
 ## Object instance manipulations
 

@@ -17,6 +17,10 @@ var apiClient = {
             headers:{Cookie:cookie, 'Content-Type':'application/json'}
         };
 
+        if (appClient.access_token != null) {
+            options.headers['Access-Token'] = appClient.access_token;
+        }
+
         var req = http.request(
             options,
 
@@ -47,7 +51,6 @@ var apiClient = {
 
             });
 
-
         if (req_data != null) {
             req_data = JSON.stringify(req_data);
             if (_.isString(req_data)) {
@@ -72,6 +75,7 @@ var apiClient = {
 }
 
 var appClient = {
+    access_token: null,
 
     get:function (url, data, cb) {
         apiClient.general('GET', url, app_config.app_api.port, data, cb)
@@ -201,10 +205,10 @@ suite("user and user group manipulations", function () {
     });
 
 
-    test('renew user access token', function(done) {
+    test('renew user access token', function (done) {
         assert.ok(user.access_token, 'Access token field is missing');
 
-        apiClient.post('/app/' + application.id + '/user/' + user.id + '/new_access_token', null, function(response) {
+        apiClient.post('/app/' + application.id + '/user/' + user.id + '/new_access_token', null, function (response) {
             assert(response.body.access_token, 'No new access token');
             assert(response.body.access_token != user.access_token, 'Access token is the same as before');
 
@@ -219,7 +223,7 @@ suite('basic test of app_api', function () {
     var application = null;
     var credentials = {
         user_name:"tester",
-        password:"password"
+        password:"password1"
     };
     var user = null;
 
@@ -234,11 +238,13 @@ suite('basic test of app_api', function () {
 
         apiClient.post('/app/', {name:APP_NAME}, function (response) {
             application = response.body;
+            appClient.access_token = application.access_token;
             createUser();
         });
     });
 
     afterEach(function (done) {
+        appClient.access_token = null;
         apiClient.del('/app/' + application.id, null, function () {
             done()
         });
@@ -246,12 +252,50 @@ suite('basic test of app_api', function () {
 
     test('get root api resource', function (done) {
         appClient.get('?access_token=' + application.access_token
-                      + '&user_token=' + user.access_token, null, function (response) {
+            + '&user_token=' + user.access_token, null, function (response) {
             var api_def = response.body;
             assert.ok(api_def.resources, "No resources field");
             done();
 
         });
+    });
+
+
+    test('ugly get authentication', function (done) {
+        apiClient.post('/app/' + application.id + '/object_type/', {name:"User", id_field:'id'}, function (response) {
+
+            var MockUser = { id:user.id, first_name:"Homer", last_name:"Simpson" };
+            apiClient.post('/app/' + application.id + '/object_type/User/', MockUser, function (response) {
+
+                var auth_query = "/ugly_get_auth?username=" + user.user_name + "&password=" + user.password +
+                    "&resource=User&access_token=" + application.access_token;
+                appClient.get(auth_query, null, function (response) {
+
+                    var session = response.body;
+                    assert.ok(session.first_name == MockUser.first_name);
+                    assert.ok(session.last_name == MockUser.last_name);
+
+                    done();
+                });
+            });
+        });
+    });
+
+    test('simple token auth', function (done) {
+        var credentials = {user_name: user.user_name, password: user.password};
+        console.log(credentials);
+        appClient.post('/simple_token_auth', credentials, function (response) {
+
+            var session = response.body;
+            console.log(session);
+
+            assert.ok(session.access_token, "Access Token missing");
+
+
+            done();
+        });
 
     });
+
+
 });

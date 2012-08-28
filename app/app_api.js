@@ -17,7 +17,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
     this.app_storage = app_storage;
     this.config = config;
 
-        // Configuration
+    // Configuration
     app.configure(function () {
         app.use(express.static(__dirname + '/public'));
     });
@@ -75,17 +75,18 @@ var AppApi = module.exports.AppApi = function (app_storage) {
     var getApplicationIdMiddleware = function (req, res, next) {
         var access_token = req.query.access_token;
         if (typeof access_token != 'string') {
-            access_token = req.get('Access-Token');
+            // TODO: improve
+            access_token = req.headers['access-token'];
         }
 
         if (typeof access_token != 'string' || access_token == '') {
-            res.send(401);
+            res.send(400);
             return;
         }
 
         console.log(">> access_token: ", access_token);
 
-        api.app_storage.getAppIdByAccessToken(access_token, function(err, app_id) {
+        api.app_storage.getAppIdByAccessToken(access_token, function (err, app_id) {
             if (err != null) {
                 res.send(500, err);
                 return;
@@ -98,7 +99,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
         });
     };
 
-    var getUserMiddleware = function(req, res, next) {
+    var getUserMiddleware = function (req, res, next) {
         var user_token = req.query.user_token;
         if (typeof user_token != 'string') {
             user_token = req.get('User-Access-Token');
@@ -107,24 +108,25 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
         if (typeof user_token == 'string' && user_token != '') {
             console.log("user token: ", user_token);
-            api.app_storage.getUserByAccessToken(user_token, function(err, user) {
+            api.app_storage.getUserByAccessToken(user_token, function (err, user) {
                 if (err != null) {
                     res.send(500, err);
                     return;
                 }
 
                 console.log('>> user name: ', user);
-                req.user = user;
+                req.user_groups = user.hasOwnProperty('groups') ? user.groups : [];
 
                 next();
             });
 
         } else {
+            req.user_groups = [];
             next();
         }
     };
 
-    var addHeadersMiddleware = function(req, res, next) {
+    var addHeadersMiddleware = function (req, res, next) {
 
         res.header('Access-Control-Allow-Origin', '*');
         next();
@@ -158,6 +160,101 @@ var AppApi = module.exports.AppApi = function (app_storage) {
         });
     });
 
+    // Authentication
+
+    // TODO: rename auth_middlewares to something more suitable
+    var auth_middlewares = [getApplicationIdMiddleware, addHeadersMiddleware];
+    app.post('/api/1/simple_token_auth', auth_middlewares, function (req, res) {
+
+        var credentials = req.body;
+        console.log("credentials: ", credentials, req.header('Access-Token'));
+        if (credentials == null || typeof credentials.user_name != 'string' ||
+            typeof credentials.password != 'string') {
+            res.send(400);
+            return;
+        }
+
+        app_storage.getUserByName(req.app_id, credentials.user_name, function(err, user) {
+            if (err != null) {
+                res.send(500, err);
+                return;
+            }
+
+            if (user == null || user.password != credentials.password) {
+                res.send(400, 'invalid credentials');
+                return;
+            }
+
+            var response = {
+                access_token: user.access_token,
+                user_id: user.id
+            };
+
+            if (typeof credentials.token_cookie == 'string') {
+                // TODO: add cookie options
+                res.cookie(credentials.token_cookie, user.access_token, {});
+            }
+
+            res.json(response);
+        });
+
+    });
+
+    app.get('/api/1/ugly_get_auth', auth_middlewares, function(req, res) {
+        var user_name = req.query.username;
+        var password = req.query.password;
+
+        if (typeof user_name != 'string' || typeof password != 'string') {
+            res.send(400, "invalid parameters");
+            return;
+        }
+
+        app_storage.getUserByName(req.app_id, user_name, function(err, user) {
+            if (err != null) {
+                res.send(500, err);
+                return;
+            }
+
+            if (user == null || user.password != password) {
+                console.log(user_name, password);
+                res.send(400);
+                return;
+            }
+
+            var resource = req.query.resource;
+            var resource_id = typeof req.query.resource_id == 'undefined' ? user.id : req.query.resource_id;
+
+            if (typeof resource != 'string' || resource == '') {
+                res.json(user);
+            } else {
+                // TODO: move to separate function
+                app_storage.getObjectType(req.app_id, resource, function(err, object_type)  {
+                    if (err != null || object_type == null) {
+                        res.send(500, err);
+                        return;
+                    }
+
+                    var id = {id: resource_id, id_field: object_type.id_field};
+
+                    app_storage.getObjectInstances(req.app_id, resource, id, function(err, resources) {
+                        if (err != null) {
+                            res.send(500, err);
+                            return;
+                        }
+
+                        if (resources == null || resources.length == 0) {
+                            res.send(404);
+                        } else {
+                            res.json(resources[0]);
+                        }
+                    });
+                });
+            }
+        });
+    });
+
+
+    // Resource manipulations
     app.get(API_PATTERN, middlewares, function (req, res) {
         api.handleGet(req.app_id, req.params[0], getDefaultCallback(res));
     });

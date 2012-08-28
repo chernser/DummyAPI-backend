@@ -334,7 +334,7 @@ AppStorage.prototype = {
         var storage = this;
         storage.getNextId(storage.USER_SEQ_NAME, function(err, id) {
             user.id = id;
-            user.app_id = app_id;
+            user.app_id = parseInt(app_id);
             user.access_token = storage.generateAccessToken();
             storage.create(storage.USER_COL, user, callback);
         });
@@ -358,6 +358,20 @@ AppStorage.prototype = {
         var storage = this;
         var query = storage.createUserOrGroupQuery(app_id, user_id);
         storage.get(this.USER_COL, query, callback);
+    },
+
+    getUserByName: function(app_id, user_name, callback) {
+        var storage = this;
+        var query = { app_id: parseInt(app_id), user_name: user_name};
+
+        storage.get(this.USER_COL, query, function(err, items) {
+            if (err != null) {
+                callback(err, null);
+                return;
+            }
+
+            callback(null, first(items));
+        });
     },
 
     getUserByAccessToken: function(access_token, callback) {
@@ -424,7 +438,7 @@ AppStorage.prototype = {
             objectType.route_pattern = '/' + objectType.name + '/{id}/';
         }
 
-        if (typeof objectType.id_field != 'string') {
+        if (typeof objectType.id_field == 'undefined') {
             objectType.id_field = '_id';
         }
 
@@ -440,6 +454,9 @@ AppStorage.prototype = {
                 }
             }
 
+            if (typeof application.objtypes == 'undefined' ) {
+                application.objtypes = [];
+            }
             application.objtypes.push(objectType);
 
             storage.saveApplication(application, function () {
@@ -642,7 +659,7 @@ AppStorage.prototype = {
                 delete items[index]['__objectType'];
                 cleaned_items.push(items[index]);
             }
-            callback(cleaned_items);
+            callback(null, cleaned_items);
         });
     },
 
