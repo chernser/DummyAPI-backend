@@ -108,6 +108,10 @@ app.post('/api/1/app/:app_id/user/?', function (req, res) {
     app.app_storage.addUser(req.params.app_id, user, DEFAULT_CALLBACK(res));
 });
 
+app.post('/api/1/app/:app_id/user/:id/new_access_token/?', function(req, res) {
+    app.app_storage.renewUserAccessToken(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res));
+});
+
 app.get('/api/1/app/:app_id/user/:id?', function(req, res) {
     app.app_storage.getUser(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res));
 });

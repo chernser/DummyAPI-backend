@@ -5,8 +5,6 @@
  *
  *  Author: Sergey Chernov (chernser@outlook.com)
  */
-
-
 var AppApi = module.exports.AppApi = function (app_storage) {
 
     var express = require('express')
@@ -31,7 +29,6 @@ var AppApi = module.exports.AppApi = function (app_storage) {
     app.configure('production', function () {
         app.use(express.errorHandler());
     });
-
 
 
     // Socket.IO
@@ -101,13 +98,39 @@ var AppApi = module.exports.AppApi = function (app_storage) {
         });
     };
 
+    var getUserMiddleware = function(req, res, next) {
+        var user_token = req.query.user_token;
+        if (typeof user_token != 'string') {
+            user_token = req.get('User-Access-Token');
+        }
+
+
+        if (typeof user_token == 'string' && user_token != '') {
+            console.log("user token: ", user_token);
+            api.app_storage.getUserByAccessToken(user_token, function(err, user) {
+                if (err != null) {
+                    res.send(500, err);
+                    return;
+                }
+
+                console.log('>> user name: ', user);
+                req.user = user;
+
+                next();
+            });
+
+        } else {
+            next();
+        }
+    };
+
     var addHeadersMiddleware = function(req, res, next) {
 
         res.header('Access-Control-Allow-Origin', '*');
         next();
     };
 
-    var middlewares = [getApplicationIdMiddleware, addHeadersMiddleware];
+    var middlewares = [getApplicationIdMiddleware, getUserMiddleware, addHeadersMiddleware];
 
     app.get('/api/1/', middlewares, function (req, res) {
         app_storage.getApplication(req.app_id, function (err, application) {

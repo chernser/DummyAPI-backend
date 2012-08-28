@@ -200,17 +200,41 @@ suite("user and user group manipulations", function () {
         assert.ok(user.id, 'Id field is missing');
     });
 
+
+    test('renew user access token', function(done) {
+        assert.ok(user.access_token, 'Access token field is missing');
+
+        apiClient.post('/app/' + application.id + '/user/' + user.id + '/new_access_token', null, function(response) {
+            assert(response.body.access_token, 'No new access token');
+            assert(response.body.access_token != user.access_token, 'Access token is the same as before');
+
+            done();
+        });
+    });
 });
 
 
 suite('basic test of app_api', function () {
 
     var application = null;
+    var credentials = {
+        user_name:"tester",
+        password:"password"
+    };
+    var user = null;
+
 
     beforeEach(function (done) {
+        var createUser = function () {
+            apiClient.post('/app/' + application.id + '/user/', credentials, function (response) {
+                user = response.body;
+                done();
+            });
+        };
+
         apiClient.post('/app/', {name:APP_NAME}, function (response) {
             application = response.body;
-            done();
+            createUser();
         });
     });
 
@@ -221,7 +245,8 @@ suite('basic test of app_api', function () {
     });
 
     test('get root api resource', function (done) {
-        appClient.get('?access_token=' + application.access_token, null, function (response) {
+        appClient.get('?access_token=' + application.access_token
+                      + '&user_token=' + user.access_token, null, function (response) {
             var api_def = response.body;
             assert.ok(api_def.resources, "No resources field");
             done();

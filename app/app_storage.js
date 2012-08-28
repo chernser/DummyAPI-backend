@@ -25,6 +25,10 @@ function fixApplicationFields(application) {
     return application;
 }
 
+function first(items) {
+    return items != null && items.length > 0 ? items[0] : null;
+}
+
 
 /**
  * AppStorage is DAO class to manipulate everything, that stored in db
@@ -226,7 +230,7 @@ AppStorage.prototype = {
         app_id = new Number(app_id).valueOf();
         var storage = this;
         storage.get(storage.APPLICATIONS_COL, {id:app_id}, function(err, items) {
-                callback(err, items != null && items.length > 0 ? items[0] : null);
+                callback(err, first(items));
         });
     },
 
@@ -251,7 +255,13 @@ AppStorage.prototype = {
 
         var storage = this;
         storage.getApplication(app_id, function (err, application) {
-
+            if (err != null) {
+                callback(err, null);
+                return;
+            } else if (application == null) {
+                callback('not_found', null);
+                return;
+            }
 
             var new_access_token = storage.generateAccessToken();
             storage.updateAppAccessTokens(app_id, application.access_token, new_access_token);
@@ -324,9 +334,24 @@ AppStorage.prototype = {
         var storage = this;
         storage.getNextId(storage.USER_SEQ_NAME, function(err, id) {
             user.id = id;
+            user.app_id = app_id;
+            user.access_token = storage.generateAccessToken();
             storage.create(storage.USER_COL, user, callback);
         });
 
+    },
+
+    renewUserAccessToken:function(app_id, user_id, callback) {
+        var storage = this;
+        var new_access_token = storage.generateAccessToken();
+        storage.put(storage.USER_COL, {id: user_id}, {$set: {access_token: new_access_token}}, function(err, saved) {
+            if (err != null) {
+                callback(err, null);
+                return;
+            }
+
+            callback(null, {access_token: new_access_token});
+        });
     },
 
     getUser:function (app_id, user_id, callback) {
@@ -335,9 +360,21 @@ AppStorage.prototype = {
         storage.get(this.USER_COL, query, callback);
     },
 
+    getUserByAccessToken: function(access_token, callback) {
+        var storage = this;
+        var query = {access_token: access_token};
+        storage.get(this.USER_COL, query, function(err, items) {
+            if (err != null) {
+                callback(err, null);
+                return;
+            }
+
+            callback(null, first(items));
+        });
+    },
+
     saveUser:function (app_id, user, callback) {
         var storage = this;
-
         var query = storage.createUserOrGroupQuery(app_id, user.id);
         storage.put(this.USER_COL, query, user, callback);
     },
