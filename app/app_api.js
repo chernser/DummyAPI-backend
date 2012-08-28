@@ -19,6 +19,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
     // Configuration
     app.configure(function () {
+        app.use(express.bodyParser());
         app.use(express.static(__dirname + '/public'));
     });
 
