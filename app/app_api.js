@@ -33,7 +33,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
 
     // Socket.IO
-    this.app_client_sockets = {};
+
     this.io = socket_io.listen(app);
 
     api.io.configure(function () {
@@ -51,35 +51,11 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
     this.io.on('connection', function (socket) {
 
-        // register client
-        var app_id = socket.handshake.app_id;
-        var sockets = api.app_client_sockets[app_id];
-        if (typeof sockets == 'undefined' || sockets == null) {
-            api.app_client_sockets[app_id] = sockets = [];
-        }
-
-        sockets.push(socket);
-
-        console.log('application ', app_id, ' client registered socket');
-
+        api.addClientSocket(socket);
 
         socket.on('disconnect', function () {
-
-            // un-register client
-            var app_id = socket.handshake.app_id;
-            var sockets = api.app_client_sockets[app_id];
-            if (typeof sockets != 'undefined' || sockets != null) {
-                for (var index in sockets) {
-                    if (sockets[index] == socket) {
-                        console.log("Disconnected client found. Remove");
-                        delete api.app_client_sockets[app_id][index];
-                        break;
-                    }
-                }
-            }
-
+            api.delClientSocket(socket);
         });
-
     });
 
 
@@ -285,22 +261,8 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
     // Sockte.IO notifications
     app.post('/api/1/socket/event', middlewares, function (req, res) {
-
-        var sockets = api.app_client_sockets[req.app_id];
-        if (typeof sockets == 'undefined') {
-            sockets = [];
-        }
-
         var event = req.body;
-
-        console.log("Sending notification: ", event);
-
-        var notified = 0;
-        for (var index in sockets) {
-            sockets[index].emit(event.name, event.data);
-            ++notified;
-        }
-
+        var notified = api.notifyApplicationClients(req.app_id, event);
         res.json({notified_clients:notified});
     });
 
@@ -437,7 +399,7 @@ AppApi.prototype.handleGet = function (app_id, url, callback) {
         var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
 
         id = getObjectId(id, objectType);
-        api.app_storage.getObjectInstances(app_id, objectType.name, id, function (resources) {
+        api.app_storage.getObjectInstances(app_id, objectType.name, id, function (err, resources) {
             if (typeof resources != 'undefined' && resources !== null && resources.length >= 0) {
                 if (id === null) {
                     var response = [];
@@ -469,7 +431,7 @@ AppApi.prototype.handlePut = function (app_id, url, instance, callback) {
 
         var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
         id = getObjectId(id, objectType);
-        api.app_storage.saveObjectInstance(app_id, objectType.name, id, instance, function (saved) {
+        api.app_storage.saveObjectInstance(app_id, objectType.name, id, instance, function (err, saved) {
             var resource = proxy(saved);
             api.notifyResourceChanged(app_id, saved);
             callback(null, resource);
@@ -483,6 +445,7 @@ AppApi.prototype.handlePost = function (app_id, url, instance, callback) {
     var route_pattern = route_info.route_pattern;
 
     api.getObjectTypeByRoute(app_id, route_pattern, function (err, objectType) {
+        console.log(">> ",err, objectType);
         if (err !== null) {
             callback(err, null);
             return;
@@ -490,7 +453,8 @@ AppApi.prototype.handlePost = function (app_id, url, instance, callback) {
 
         var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
 
-        api.app_storage.addObjectInstace(app_id, objectType.name, instance, function (saved) {
+        api.app_storage.addObjectInstace(app_id, objectType.name, instance, function (err, saved) {
+            api.notifyResourceCreated(app_id, saved);
             callback(err, proxy(saved));
         });
     });
@@ -509,6 +473,7 @@ AppApi.prototype.handleDelete = function (app_id, url, callback) {
         }
         id = getObjectId(id, objectType);
         api.app_storage.deleteObjectInstance(app_id, objectType.name, id, function () {
+            api.notifyResourceDeleted({id: id, object_type: objectType.name});
             callback(null, null);
         });
     });
@@ -533,37 +498,74 @@ function getNotifyProxy(application) {
     return DEFAULT_NOTIFY_PROXY;
 }
 
+
+// Notifications
+AppApi.prototype.app_client_sockets = {};
+
+AppApi.prototype.addClientSocket = function(socket) {
+
+    // register client
+    var app_id = socket.handshake.app_id;
+    var sockets = this.app_client_sockets[app_id];
+    if (typeof sockets == 'undefined' || sockets == null) {
+        this.app_client_sockets[app_id] = sockets = [];
+    }
+
+    sockets.push(socket);
+
+    console.log('application ', app_id, ' client registered socket');
+};
+
+AppApi.prototype.delClientSocket = function(socket) {
+    // un-register client
+    var app_id = socket.handshake.app_id;
+    var sockets = this.app_client_sockets[app_id];
+    if (typeof sockets != 'undefined' || sockets != null) {
+        for (var index in sockets) {
+            if (sockets[index] == socket) {
+                console.log("Disconnected client found. Remove");
+                delete this.app_client_sockets[app_id][index];
+                break;
+            }
+        }
+    }
+};
+
+AppApi.prototype.notifyApplicationClients = function(app_id, event) {
+
+    var sockets = this.app_client_sockets[app_id];
+    if (typeof sockets == 'undefined') {
+        sockets = [];
+    }
+
+    var notified = 0;
+    for (var index in sockets) {
+        sockets[index].emit(event.name, event.data);
+        ++notified;
+    }
+
+    return notified;
+};
+
 AppApi.prototype.send_event = function (app_id, eventName, eventData) {
     var api = this;
 
-    if (typeof api.socket == 'undefined') {
-        console.log("Socket is not yet initialized");
-        return;
-    }
-
-    api.app_storage.getApplication(app_id, function (application) {
+    api.app_storage.getApplication(app_id, function (err, application) {
         var proxy = getNotifyProxy(application);
         var event = proxy({name:eventName, type:'event'}, eventData);
 
-        if (typeof event.name != 'undefined' && event.name !== '') {
-            eventName = event.name;
-        }
-
-        if (typeof event.data != 'undefined') {
-            eventData = event.data;
-        }
-        api.socket.emit(eventName, eventData);
+        api.notifyApplicationClients(app_id, event);
     });
 };
 
-AppApi.prototype.notifyResourceChanged = function (resource) {
-    this.send_event('resource_updated', resource);
+AppApi.prototype.notifyResourceChanged = function (app_id, resource) {
+    this.send_event(app_id, 'resource_updated', resource);
 };
 
-AppApi.prototype.notifyResourceCreated = function (resource) {
-    this.send_event('resource_created', resource);
+AppApi.prototype.notifyResourceCreated = function (app_id, resource) {
+    this.send_event(app_id, 'resource_created', resource);
 };
 
-AppApi.prototype.notifyResourceDeleted = function (resource) {
-    this.send_event('resource_deleted', resource);
+AppApi.prototype.notifyResourceDeleted = function (app_id, resource) {
+    this.send_event(app_id, 'resource_deleted', resource);
 };

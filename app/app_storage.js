@@ -140,7 +140,7 @@ AppStorage.prototype = {
 
                     if (typeof callback == 'function') {
                         cursor.toArray(function (err, items) {
-                            callback(items[0]);
+                            callback(null, items[0]);
                         });
                     }
                 });
@@ -218,7 +218,7 @@ AppStorage.prototype = {
     saveApplication:function (application, callback) {
         var storage = this;
 
-        application.id = new Number(application.id).valueOf();
+        application.id = parseInt(application.id);
 
         storage.put(storage.APPLICATIONS_COL, {id:application.id}, application, function (err, saved) {
             callback(err, saved);
@@ -227,7 +227,7 @@ AppStorage.prototype = {
 
 
     getApplication:function (app_id, callback) {
-        app_id = new Number(app_id).valueOf();
+        app_id = parseInt(app_id);
         var storage = this;
         storage.get(storage.APPLICATIONS_COL, {id:app_id}, function(err, items) {
                 callback(err, first(items));
@@ -236,12 +236,15 @@ AppStorage.prototype = {
 
 
     deleteApplication:function (app_id, callback) {
-        app_id = new Number(app_id).valueOf();
+        app_id = parseInt(app_id);
 
         var storage = this;
         storage.remove(storage.APPLICATIONS_COL, {id:app_id}, function() {
             storage.remove(storage.USER_COL, {app_id: app_id});
             storage.remove(storage.USER_GROUP_COL, {app_id: app_id});
+            storage.db.collection(storage.getResourceCollectionName(app_id), function(err, collection) {
+                collection.remove({});
+            });
             callback();
         });
 
@@ -445,8 +448,8 @@ AppStorage.prototype = {
         var storage = this;
         storage.getApplication(app_id, function (err, application) {
 
-            for (var index in application.objtypes) {
-                if (application.objtypes[index].name == objectType.name) {
+            for (var index in application.object_types) {
+                if (application.object_types[index].name == objectType.name) {
                     if (typeof callback == 'function') {
                         callback('already_exists', application.objtypes[index]);
                     }
@@ -454,10 +457,10 @@ AppStorage.prototype = {
                 }
             }
 
-            if (typeof application.objtypes == 'undefined' ) {
-                application.objtypes = [];
+            if (typeof application.object_types == 'undefined' ) {
+                application.object_types = [];
             }
-            application.objtypes.push(objectType);
+            application.object_types.push(objectType);
 
             storage.saveApplication(application, function () {
                 if (typeof callback == 'function') {
@@ -477,10 +480,10 @@ AppStorage.prototype = {
             }
 
             if (objectTypeName != '*') {
-                for (var index in application.objtypes) {
-                    if (application.objtypes[index].name == objectTypeName) {
+                for (var index in application.object_types) {
+                    if (application.object_types[index].name == objectTypeName) {
                         if (typeof callback == 'function') {
-                            callback(null, application.objtypes[index]);
+                            callback(null, application.object_types[index]);
                         }
                         return;
                     }
@@ -502,10 +505,10 @@ AppStorage.prototype = {
                 return;
             }
 
-            for (var index in application.objtypes) {
-                if (application.objtypes[index].route_pattern == routePattern) {
+            for (var index in application.object_types) {
+                if (application.object_types[index].route_pattern == routePattern) {
                     if (typeof callback == 'function') {
-                        callback(null, application.objtypes[index]);
+                        callback(null, application.object_types[index]);
                     }
                     return;
                 }
@@ -521,10 +524,10 @@ AppStorage.prototype = {
         storage.getApplication(app_id, function (application) {
 
             var doUpdate = false;
-            for (var index in application.objtypes) {
+            for (var index in application.object_types) {
 
-                if (application.objtypes[index].name == objectType.name) {
-                    var exiting = application.objtypes[index];
+                if (application.object_types[index].name == objectType.name) {
+                    var exiting = application.object_types[index];
 
                     // Copy allowed to change fields
                     exiting.route_pattern = objectType.route_pattern;
@@ -557,17 +560,17 @@ AppStorage.prototype = {
             var doUpdate = false;
             var newObjectTypesList = [];
             // TODO: rework
-            for (var index in application.objtypes) {
-                if (application.objtypes[index].name == object_type_name) {
+            for (var index in application.object_types) {
+                if (application.object_types[index].name == object_type_name) {
                     doUpdate = true;
                     continue;
                 }
-                newObjectTypesList.push(application.objtypes[index]);
+                newObjectTypesList.push(application.object_types[index]);
             }
 
             console.log("Deleting object type: ", object_type_name, application);
             if (doUpdate) {
-                application.objtypes = newObjectTypesList;
+                application.object_types = newObjectTypesList;
                 storage.saveApplication(application, function () {
                     var resource_collection = storage.getResourceCollection(appId);
                     resource_collection.remove({__objectType:object_type_name});

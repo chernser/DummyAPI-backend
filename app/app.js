@@ -162,20 +162,45 @@ app.delete('/api/1/app/:app_id/object_type/:name', function (req, res) {
 });
 
 // Object instance management
+
+//TODO: rework!!!
+var CALLBACK_WITH_CALLBACK = function (res, callback) {
+    return function (err, objects) {
+        if (err != null) {
+            console.log(err, ':', new Error().stack);
+            res.send(500);
+            return;
+        }
+
+        res.json(objects);
+        callback(objects);
+    };
+};
+
 app.post('/api/1/app/:app_id/object_type/:name/?', function (req, res) {
-    app.app_storage.addObjectInstace(req.params.app_id, req.params.name, req.body, DEFAULT_CALLBACK(res));
+    app.app_storage.addObjectInstace(req.params.app_id, req.params.name, req.body,
+        CALLBACK_WITH_CALLBACK(res, function(objects) {
+            app.app_api.notifyResourceCreated(req.params.app_id,  objects);
+        }));
 });
 
 app.get('/api/1/app/:app_id/object_type/:name/:id?', function (req, res) {
-    app.app_storage.getObjectInstances(req.params.app_id, req.params.name, req.params.id, DEFAULT_CALLBACK(res));
+    app.app_storage.getObjectInstances(req.params.app_id, req.params.name, req.params.id,
+        DEFAULT_CALLBACK(req));
 });
 
 app.put('/api/1/app/:app_id/object_type/:name/:id', function(req, res) {
-    app.app_storage.saveObjectInstance(req.params.app_id, req.params.name, req.params.id, req.body, DEFAULT_CALLBACK(res));
+    app.app_storage.saveObjectInstance(req.params.app_id, req.params.name, req.params.id, req.body,
+        CALLBACK_WITH_CALLBACK(res, function(objects) {
+            app.app_api.notifyResourceChanged(req.params.app_id,  objects);
+        }));
 });
 
 app.delete('/api/1/app/:app_id/object_type/:name/:id', function(req, res) {
-    app.app_storage.deleteObjectInstance(req.params.app_id, req.params.name, req.params.id, DEFAULT_CALLBACK(res));
+    app.app_storage.deleteObjectInstance(req.params.app_id, req.params.name, req.params.id,
+        CALLBACK_WITH_CALLBACK(res, function() {
+            app.app_api.notifyResourceDeleted(req.params.app_id,  {id: req.params.id, object_type: req.params.name});
+        }));
 });
 
 
@@ -218,8 +243,7 @@ app.state.on('start', function () {
 });
 
 app.state.on('stop', function () {
-
-    require('process').exit();
+    process.exit(1);
 });
 
 app.state.on('db_init_error', function () {
