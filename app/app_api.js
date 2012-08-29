@@ -20,7 +20,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
     // Configuration
     app.configure(function () {
         app.use(express.bodyParser());
-        app.use(express.static(__dirname + '/public'));
+        app.use(express.static(__dirname + '/../public/'));
     });
 
     app.configure('development', function () {
@@ -33,13 +33,11 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
 
     // Socket.IO
-    this.socket_io_port = 10100;
-    this.io = socket_io.listen(this.socket_io_port);
+    this.io = socket_io.listen(app);
 
     this.io.on('connection', function (socket) {
-        api.socket = socket;
-    });
 
+    });
 
     // Express.JS
     var ALLOWED_HEADERS = 'Content-Type, X-Parse-REST-API-Key, X-Parse-Application-Id, ' +
