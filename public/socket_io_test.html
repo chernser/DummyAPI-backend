@@ -71,6 +71,18 @@
         socket.on('test', function(event) {
             out("Got test message: " + event);
         });
+
+        socket.on('resource_created', function(event) {
+            out("Resource created: " + JSON.stringify(event));
+        });
+
+        socket.on('resource_updated', function(event) {
+            out("Resource updated: " + JSON.stringify(event));
+        });
+
+        socket.on('resource_deleted', function(event) {
+            out("Resource deleted: " + JSON.stringify(event));
+        });
     } else {
         out("Please specify application id by adding 'app=$app_id' to query string");
     }

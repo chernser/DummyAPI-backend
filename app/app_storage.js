@@ -140,7 +140,7 @@ AppStorage.prototype = {
 
                     if (typeof callback == 'function') {
                         cursor.toArray(function (err, items) {
-                            callback(items[0]);
+                            callback(null, items[0]);
                         });
                     }
                 });
@@ -218,7 +218,7 @@ AppStorage.prototype = {
     saveApplication:function (application, callback) {
         var storage = this;
 
-        application.id = new Number(application.id).valueOf();
+        application.id = parseInt(application.id);
 
         storage.put(storage.APPLICATIONS_COL, {id:application.id}, application, function (err, saved) {
             callback(err, saved);
@@ -227,7 +227,7 @@ AppStorage.prototype = {
 
 
     getApplication:function (app_id, callback) {
-        app_id = new Number(app_id).valueOf();
+        app_id = parseInt(app_id);
         var storage = this;
         storage.get(storage.APPLICATIONS_COL, {id:app_id}, function(err, items) {
                 callback(err, first(items));
@@ -236,7 +236,7 @@ AppStorage.prototype = {
 
 
     deleteApplication:function (app_id, callback) {
-        app_id = new Number(app_id).valueOf();
+        app_id = parseInt(app_id);
 
         var storage = this;
         storage.remove(storage.APPLICATIONS_COL, {id:app_id}, function() {
