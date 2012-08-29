@@ -243,8 +243,7 @@ app.state.on('start', function () {
 });
 
 app.state.on('stop', function () {
-
-    require('process').exit();
+    process.exit(1);
 });
 
 app.state.on('db_init_error', function () {
