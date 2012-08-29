@@ -497,7 +497,7 @@ AppStorage.prototype = {
     getObjectTypeByRoute:function (app_id, routePattern, callback) {
         var storage = this;
         storage.getApplication(app_id, function (err, application) {
-            if (typeof application == 'undefined') {
+            if (typeof application == 'undefined' || application == null) {
                 callback('not_found', null);
                 return;
             }

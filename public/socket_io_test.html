@@ -8,6 +8,7 @@
 <p id="out">
 
 </p>
+<button id="self_test_btn">Push for Self-Test</button>
 
 
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js"></script>
@@ -19,15 +20,61 @@
         _out.append(message + "<br>");
     }
 
-    var socket = io.connect("//" + window.location.hostname + ':' + window.location.port + '/');
+    function getAccessToken() {
+        var pattern = /access_token=(\w+)&?/;
+        var result = pattern.exec(window.location.href);
+        console.log(result[1]);
+        if (result != null) {
+            return result[1];
+        }
+        return null;
+    }
 
-    socket.on('connect', function() {
-        out("Socket is connected");
+
+    var access_token = getAccessToken();
+    var api_url = "//" + window.location.hostname + ':' + window.location.port + '/api/1/';
+
+    $("#self_test_btn").click(function() {
+        var self_test_event = {name: 'test', data: 'this is self test'};
+
+        $.ajax({
+            url: api_url + 'socket/event?access_token=' +access_token,
+            type: 'POST',
+            dataType: 'json',
+            contentType: 'application/json',
+            data: JSON.stringify(self_test_event),
+
+            success: function(result) {
+                out("Result: " + JSON.stringify(result));
+            },
+
+
+            error: function() {
+                out("Self-Test failed");
+            }
+        })
+
     });
 
-    socket.on('disconnect', function() {
-        out("Socket is disconnected");
-    });
+    if (access_token != null) {
+        var socket_url = "//" + window.location.hostname + ':' + window.location.port;
+        var socket = io.connect(socket_url + "/?access_token=" + access_token);
+
+        socket.on('connect', function () {
+            out("Socket is connected");
+        });
+
+        socket.on('disconnect', function () {
+            out("Socket is disconnected");
+        });
+
+        socket.on('test', function(event) {
+            out("Got test message: " + event);
+        });
+    } else {
+        out("Please specify application id by adding 'app=$app_id' to query string");
+    }
+
 
 </script>
 </body>

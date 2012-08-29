@@ -33,11 +33,55 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
 
     // Socket.IO
+    this.app_client_sockets = {};
     this.io = socket_io.listen(app);
+
+    api.io.configure(function () {
+        api.io.set('authorization', function (handshakeData, callback) {
+            api.getApplicationIdFromReq(handshakeData.headers, handshakeData.query, function (err, app_id) {
+                if (err != null) {
+                    callback(null, false);
+                } else {
+                    handshakeData.app_id = app_id;
+                    callback(null, true); // error first callback style
+                }
+            });
+        });
+    });
 
     this.io.on('connection', function (socket) {
 
+        // register client
+        var app_id = socket.handshake.app_id;
+        var sockets = api.app_client_sockets[app_id];
+        if (typeof sockets == 'undefined' || sockets == null) {
+            api.app_client_sockets[app_id] = sockets = [];
+        }
+
+        sockets.push(socket);
+
+        console.log('application ', app_id, ' client registered socket');
+
+
+        socket.on('disconnect', function () {
+
+            // un-register client
+            var app_id = socket.handshake.app_id;
+            var sockets = api.app_client_sockets[app_id];
+            if (typeof sockets != 'undefined' || sockets != null) {
+                for (var index in sockets) {
+                    if (sockets[index] == socket) {
+                        console.log("Disconnected client found. Remove");
+                        delete api.app_client_sockets[app_id][index];
+                        break;
+                    }
+                }
+            }
+
+        });
+
     });
+
 
     // Express.JS
     var ALLOWED_HEADERS = 'Content-Type, X-Parse-REST-API-Key, X-Parse-Application-Id, ' +
@@ -72,29 +116,15 @@ var AppApi = module.exports.AppApi = function (app_storage) {
     };
 
     var getApplicationIdMiddleware = function (req, res, next) {
-        var access_token = req.query.access_token;
-        if (typeof access_token != 'string') {
-            // TODO: improve
-            access_token = req.headers['access-token'];
-        }
-
-        if (typeof access_token != 'string' || access_token == '') {
-            res.send(400);
-            return;
-        }
-
-        console.log(">> access_token: ", access_token);
-
-        api.app_storage.getAppIdByAccessToken(access_token, function (err, app_id) {
-            if (err != null) {
+        api.getApplicationIdFromReq(req.headers, req.query, function (err, app_id) {
+            if (err == 'not_found') {
+                res.send(400);
+            } else if (err != null) {
                 res.send(500, err);
-                return;
+            } else {
+                req.app_id = app_id;
+                next();
             }
-
-            console.log(">> application id: ", app_id);
-            req.app_id = app_id;
-
-            next();
         });
     };
 
@@ -173,7 +203,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
             return;
         }
 
-        app_storage.getUserByName(req.app_id, credentials.user_name, function(err, user) {
+        app_storage.getUserByName(req.app_id, credentials.user_name, function (err, user) {
             if (err != null) {
                 res.send(500, err);
                 return;
@@ -185,8 +215,8 @@ var AppApi = module.exports.AppApi = function (app_storage) {
             }
 
             var response = {
-                access_token: user.access_token,
-                user_id: user.id
+                access_token:user.access_token,
+                user_id:user.id
             };
 
             if (typeof credentials.token_cookie == 'string') {
@@ -199,7 +229,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
     });
 
-    app.get('/api/1/ugly_get_auth', auth_middlewares, function(req, res) {
+    app.get('/api/1/ugly_get_auth', auth_middlewares, function (req, res) {
         var user_name = req.query.username;
         var password = req.query.password;
 
@@ -208,7 +238,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
             return;
         }
 
-        app_storage.getUserByName(req.app_id, user_name, function(err, user) {
+        app_storage.getUserByName(req.app_id, user_name, function (err, user) {
             if (err != null) {
                 res.send(500, err);
                 return;
@@ -227,15 +257,15 @@ var AppApi = module.exports.AppApi = function (app_storage) {
                 res.json(user);
             } else {
                 // TODO: move to separate function
-                app_storage.getObjectType(req.app_id, resource, function(err, object_type)  {
+                app_storage.getObjectType(req.app_id, resource, function (err, object_type) {
                     if (err != null || object_type == null) {
                         res.send(500, err);
                         return;
                     }
 
-                    var id = {id: resource_id, id_field: object_type.id_field};
+                    var id = {id:resource_id, id_field:object_type.id_field};
 
-                    app_storage.getObjectInstances(req.app_id, resource, id, function(err, resources) {
+                    app_storage.getObjectInstances(req.app_id, resource, id, function (err, resources) {
                         if (err != null) {
                             res.send(500, err);
                             return;
@@ -253,7 +283,29 @@ var AppApi = module.exports.AppApi = function (app_storage) {
     });
 
 
-    // Resource manipulations
+    // Sockte.IO notifications
+    app.post('/api/1/socket/event', middlewares, function (req, res) {
+
+        var sockets = api.app_client_sockets[req.app_id];
+        if (typeof sockets == 'undefined') {
+            sockets = [];
+        }
+
+        var event = req.body;
+
+        console.log("Sending notification: ", event);
+
+        var notified = 0;
+        for (var index in sockets) {
+            sockets[index].emit(event.name, event.data);
+            ++notified;
+        }
+
+        res.json({notified_clients:notified});
+    });
+
+
+    // Resource manipulations (keep them last)
     app.get(API_PATTERN, middlewares, function (req, res) {
         api.handleGet(req.app_id, req.params[0], getDefaultCallback(res));
     });
@@ -289,6 +341,29 @@ AppApi.prototype.stop = function () {
     var app = this.app;
     app.close();
 };
+
+
+AppApi.prototype.getApplicationIdFromReq = function (headers, query, callback) {
+    var api = this;
+    var access_token = query.access_token;
+    if (typeof access_token != 'string') {
+        // TODO: improve
+        access_token = headers['access-token'];
+    }
+
+    if (typeof access_token != 'string' || access_token == '') {
+        callback('not_found', null);
+    } else {
+        api.app_storage.getAppIdByAccessToken(access_token, function (err, app_id) {
+            if (err != null) {
+                callback(err, null);
+                return;
+            }
+
+            callback(null, app_id);
+        });
+    }
+}
 
 
 AppApi.prototype.getObjectTypeByRoute = function (app_id, route_pattern, callback) {
