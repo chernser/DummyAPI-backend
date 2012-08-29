@@ -399,7 +399,7 @@ AppApi.prototype.handleGet = function (app_id, url, callback) {
         var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
 
         id = getObjectId(id, objectType);
-        api.app_storage.getObjectInstances(app_id, objectType.name, id, function (resources) {
+        api.app_storage.getObjectInstances(app_id, objectType.name, id, function (err, resources) {
             if (typeof resources != 'undefined' && resources !== null && resources.length >= 0) {
                 if (id === null) {
                     var response = [];
@@ -431,7 +431,7 @@ AppApi.prototype.handlePut = function (app_id, url, instance, callback) {
 
         var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
         id = getObjectId(id, objectType);
-        api.app_storage.saveObjectInstance(app_id, objectType.name, id, instance, function (saved) {
+        api.app_storage.saveObjectInstance(app_id, objectType.name, id, instance, function (err, saved) {
             var resource = proxy(saved);
             api.notifyResourceChanged(app_id, saved);
             callback(null, resource);
@@ -445,6 +445,7 @@ AppApi.prototype.handlePost = function (app_id, url, instance, callback) {
     var route_pattern = route_info.route_pattern;
 
     api.getObjectTypeByRoute(app_id, route_pattern, function (err, objectType) {
+        console.log(">> ",err, objectType);
         if (err !== null) {
             callback(err, null);
             return;
@@ -452,7 +453,7 @@ AppApi.prototype.handlePost = function (app_id, url, instance, callback) {
 
         var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
 
-        api.app_storage.addObjectInstace(app_id, objectType.name, instance, function (saved) {
+        api.app_storage.addObjectInstace(app_id, objectType.name, instance, function (err, saved) {
             api.notifyResourceCreated(app_id, saved);
             callback(err, proxy(saved));
         });
