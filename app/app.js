@@ -53,28 +53,67 @@ app.configure('production', function () {
 
 
 // API
-var DEFAULT_CALLBACK = function (res) {
+var DEFAULT_CALLBACK = function (res, single_result) {
+    if (_.isUndefined(single_result)) {
+        single_result = true;
+    }
+
     return function (err, objects) {
-        if (err != null) {
+        if (err == 'not_found') {
+            res.send(404);
+            return;
+        } else if (err == 'invalid') {
+            res.send(400);
+            return;
+        } else if (err != null) {
             console.log(err, ':', new Error().stack);
             res.send(500);
             return;
         }
 
-        if (_.isArray(objects)) {
-            res.json(objects[0]);
-        } else {
-            res.json(objects);
+        if (single_result == true) {
+
+            if (_.isEmpty(objects)) {
+                res.send(404);
+                return;
+            } else if (_.isArray(objects)) {
+                res.json(objects[0]);
+                return;
+            }
         }
+        res.json(objects);
+
+
     };
 };
 
-// Application management
-app.get('/api/1/app/:app_id', function (req, res) {
-    res.send([]);
+var ALLOWED_HEADERS = 'Content-Type, X-Parse-REST-API-Key, X-Parse-Application-Id, ' +
+    'Access-Token';
+
+app.options('*', function (req, res) {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Credentials', true);
+    res.header('Access-Control-Allow-Methods', 'POST, GET, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', ALLOWED_HEADERS);
+
+    // TODO: move custom fields to configuration
+
+    res.send(200);
 });
 
-app.post('/api/1/app/?', function (req, res) {
+var addHeadersMiddleware = function (req, res, next) {
+
+    res.header('Access-Control-Allow-Origin', '*');
+    next();
+};
+
+var middleware = [addHeadersMiddleware];
+
+app.get('/api/1/app/:app_id?', middleware, function (req, res) {
+    app.app_storage.getApplication(req.params.app_id, DEFAULT_CALLBACK(res, !_.isUndefined(req.params.app_id)));
+});
+
+app.post('/api/1/app/?', middleware, function (req, res) {
     var application = {
         name:req.body.name
     };
@@ -83,24 +122,23 @@ app.post('/api/1/app/?', function (req, res) {
     app.app_storage.addApplication(application, DEFAULT_CALLBACK(res));
 });
 
-app.put('/api/1/app/:app_id', function (req, res) {
+app.put('/api/1/app/:app_id', middleware, function (req, res) {
     var application = {
-
+        id:req.params.app_id
     };
     app.app_storage.saveApplication(application, DEFAULT_CALLBACK(res));
 });
 
-app.delete('/api/1/app/:app_id', function (req, res) {
-    console.log("Removing application: ", req.params.app_id);
+app.delete('/api/1/app/:app_id', middleware, function (req, res) {
     app.app_storage.deleteApplication(req.params.app_id, DEFAULT_CALLBACK(res));
 });
 
-app.post('/api/1/app/:app_id/new_access_token', function (req, res) {
+app.post('/api/1/app/:app_id/new_access_token', middleware, function (req, res) {
     app.app_storage.renewAccessToken(req.params.app_id, DEFAULT_CALLBACK(res));
 });
 
 // Users and gorup management
-app.post('/api/1/app/:app_id/user/?', function (req, res) {
+app.post('/api/1/app/:app_id/user/?', middleware, function (req, res) {
     var user = {
         user_name:req.body.user_name,
         password:req.body.password
@@ -108,15 +146,15 @@ app.post('/api/1/app/:app_id/user/?', function (req, res) {
     app.app_storage.addUser(req.params.app_id, user, DEFAULT_CALLBACK(res));
 });
 
-app.post('/api/1/app/:app_id/user/:id/new_access_token/?', function (req, res) {
+app.post('/api/1/app/:app_id/user/:id/new_access_token/?', middleware, function (req, res) {
     app.app_storage.renewUserAccessToken(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res));
 });
 
-app.get('/api/1/app/:app_id/user/:id?', function (req, res) {
-    app.app_storage.getUser(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res));
+app.get('/api/1/app/:app_id/user/:id?', middleware, function (req, res) {
+    app.app_storage.getUser(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res, !_.isUndefined(req.params.id)));
 });
 
-app.put('/api/1/app/:app_id/user/:id', function (req, res) {
+app.put('/api/1/app/:app_id/user/:id', middleware, function (req, res) {
     var user = {};
 
     if (typeof req.body.groups == 'array') {
@@ -126,30 +164,31 @@ app.put('/api/1/app/:app_id/user/:id', function (req, res) {
     app.app_storage.saveUser(req.params.app_id, user, DEFAULT_CALLBACK(res));
 });
 
-app.delete('/api/1/app/:app_id/user/:id', function (req, res) {
+app.delete('/api/1/app/:app_id/user/:id', middleware, function (req, res) {
     app.app_storage.deleteUser(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res));
 });
 
-app.get('/api/1/app/:app_id/user_group/:id?', function (req, res) {
-    app.app_storage.getUserGroup(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res));
+app.get('/api/1/app/:app_id/user_group/:id?', middleware, function (req, res) {
+    app.app_storage.getUserGroup(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res, !_.isUndefined(req.params.id)));
 });
 
 // Object types
-app.get('/api/1/app/:app_id/object_type/:name?', function (req, res) {
-    app.app_storage.getObjectType(req.params.app_id, req.params.name != null ? req.params.name : '*', DEFAULT_CALLBACK(res));
+app.get('/api/1/app/:app_id/object_type/:name?', middleware, function (req, res) {
+    app.app_storage.getObjectType(req.params.app_id, req.params.name != null ? req.params.name : '*',
+        DEFAULT_CALLBACK(res, !_.isUndefined(req.params.name)));
 });
 
-app.post('/api/1/app/:app_id/object_type/?', function (req, res) {
+app.post('/api/1/app/:app_id/object_type/?', middleware, function (req, res) {
     var object_type = {
         name:req.body.name,
         route_pattern:req.body.route_pattern,
-        id_field: req.body.id_field
+        id_field:req.body.id_field
     };
     app.app_storage.addObjectType(req.params.app_id, object_type, DEFAULT_CALLBACK(res));
 });
 
 
-app.put('/api/1/app/:app_id/object_type/:name', function (req, res) {
+app.put('/api/1/app/:app_id/object_type/:name', middleware, function (req, res) {
     var object_type = {
         name:req.params.name,
         route_pattern:req.body.route_pattern
@@ -157,7 +196,7 @@ app.put('/api/1/app/:app_id/object_type/:name', function (req, res) {
     app.app_storage.saveObjectType(req.params.app_id, object_type, DEFAULT_CALLBACK(res));
 });
 
-app.delete('/api/1/app/:app_id/object_type/:name', function (req, res) {
+app.delete('/api/1/app/:app_id/object_type/:name', middleware, function (req, res) {
     app.app_storage.deleteObjectType(req.params.app_id, req.params.name, DEFAULT_CALLBACK(res));
 });
 
@@ -179,8 +218,8 @@ var CALLBACK_WITH_CALLBACK = function (res, callback) {
 
 app.post('/api/1/app/:app_id/object_type/:name/?', function (req, res) {
     app.app_storage.addObjectInstace(req.params.app_id, req.params.name, req.body,
-        CALLBACK_WITH_CALLBACK(res, function(objects) {
-            app.app_api.notifyResourceCreated(req.params.app_id,  objects);
+        CALLBACK_WITH_CALLBACK(res, function (objects) {
+            app.app_api.notifyResourceCreated(req.params.app_id, objects);
         }));
 });
 
@@ -189,17 +228,17 @@ app.get('/api/1/app/:app_id/object_type/:name/:id?', function (req, res) {
         DEFAULT_CALLBACK(req));
 });
 
-app.put('/api/1/app/:app_id/object_type/:name/:id', function(req, res) {
+app.put('/api/1/app/:app_id/object_type/:name/:id', function (req, res) {
     app.app_storage.saveObjectInstance(req.params.app_id, req.params.name, req.params.id, req.body,
-        CALLBACK_WITH_CALLBACK(res, function(objects) {
-            app.app_api.notifyResourceChanged(req.params.app_id,  objects);
+        CALLBACK_WITH_CALLBACK(res, function (objects) {
+            app.app_api.notifyResourceChanged(req.params.app_id, objects);
         }));
 });
 
-app.delete('/api/1/app/:app_id/object_type/:name/:id', function(req, res) {
+app.delete('/api/1/app/:app_id/object_type/:name/:id', function (req, res) {
     app.app_storage.deleteObjectInstance(req.params.app_id, req.params.name, req.params.id,
-        CALLBACK_WITH_CALLBACK(res, function() {
-            app.app_api.notifyResourceDeleted(req.params.app_id,  {id: req.params.id, object_type: req.params.name});
+        CALLBACK_WITH_CALLBACK(res, function () {
+            app.app_api.notifyResourceDeleted(req.params.app_id, {id:req.params.id, object_type:req.params.name});
         }));
 });
 

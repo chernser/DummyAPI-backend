@@ -82,7 +82,7 @@ AppStorage.prototype = {
                     return;
                 }
 
-                callback(null, docs);
+                callback(null, docs[0]);
             });
         });
 
@@ -189,6 +189,7 @@ AppStorage.prototype = {
 
 
     // Constatns
+    GET_ALL_QUERY: {},
     APPLICATIONS_COL:'applications',
     APPLICATION_SEQ_NAME:'appSeqNumber',
     USER_COL:'application_users',
@@ -196,11 +197,14 @@ AppStorage.prototype = {
     USER_SEQ_NAME:'userSeqNumber',
     USER_GROUP_SEQ_NAME:'userGroupSeqNumber',
 
-
     addApplication:function (application, callback) {
 
-        var storage = this;
+        if (typeof application.name == 'undefined' || application.name == '') {
+            callback('invalid', null);
+            return;
+        }
 
+        var storage = this;
         storage.getNextId(storage.APPLICATION_SEQ_NAME, function (err, app_id) {
             if (err != null) {
                 callback(err, null);
@@ -218,20 +222,22 @@ AppStorage.prototype = {
     saveApplication:function (application, callback) {
         var storage = this;
 
-        application.id = parseInt(application.id);
+        var app_id = parseInt(application.id);
 
-        storage.put(storage.APPLICATIONS_COL, {id:application.id}, application, function (err, saved) {
+        storage.put(storage.APPLICATIONS_COL, {id: app_id}, application, function (err, saved) {
+            if (saved == null) {
+                callback('not_found');
+                return;
+            }
             callback(err, saved);
         });
     },
 
 
     getApplication:function (app_id, callback) {
-        app_id = parseInt(app_id);
         var storage = this;
-        storage.get(storage.APPLICATIONS_COL, {id:app_id}, function(err, items) {
-                callback(err, first(items));
-        });
+        var query = typeof app_id != 'undefined' ? {id: parseInt(app_id)} : storage.GET_ALL_QUERY;
+        storage.get(storage.APPLICATIONS_COL, query, callback);
     },
 
 
@@ -266,14 +272,20 @@ AppStorage.prototype = {
                 return;
             }
 
+            application = application[0];
+
+            var old_access_token = application.access_token;
             var new_access_token = storage.generateAccessToken();
-            storage.updateAppAccessTokens(app_id, application.access_token, new_access_token);
             application.access_token = new_access_token;
 
-            storage.saveApplication(application, function () {
-
+            console.log("application: ", application);
+            storage.saveApplication(application, function (err, saved) {
+                console.log('renewal result', application, err, saved);
+                if (err == null) {
+                    storage.updateAppAccessTokens(app_id, old_access_token, new_access_token);
+                }
                 if (typeof callback == 'function') {
-                    callback(null, {access_token:application.access_token});
+                    callback(err, {access_token:application.access_token});
                 }
             });
         });
@@ -321,12 +333,12 @@ AppStorage.prototype = {
 
 
         var tmp_app_id = parseInt(app_id);
-        if (tmp_app_id != NaN) {
+        if (!isNaN(tmp_app_id)) {
             query.app_id = tmp_app_id;
         }
 
         var tmp_user_or_group_id = parseInt(user_or_group_id);
-        if (tmp_user_or_group_id != NaN) {
+        if (!isNaN(tmp_user_or_group_id)) {
             query.id = tmp_user_or_group_id;
         }
 
@@ -334,6 +346,11 @@ AppStorage.prototype = {
     },
 
     addUser:function (app_id, user, callback) {
+        if (typeof user.user_name != 'string') {
+            callback('invalid', null);
+            return;
+        }
+
         var storage = this;
         storage.getNextId(storage.USER_SEQ_NAME, function(err, id) {
             user.id = id;
