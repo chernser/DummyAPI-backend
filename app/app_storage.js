@@ -416,7 +416,7 @@ AppStorage.prototype = {
     deleteUser:function (app_id, user_id, callback) {
         var storage = this;
         var query = storage.createUserOrGroupQuery(app_id, user_id);
-        storage.delete(this.USER_COL, query, callback);
+        storage.remove(this.USER_COL, query, callback);
     },
 
     addUserGroup:function (app_id, user_group, callback) {

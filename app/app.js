@@ -143,6 +143,14 @@ app.post('/api/1/app/:app_id/user/?', middleware, function (req, res) {
         user_name:req.body.user_name,
         password:req.body.password
     };
+
+    console.log("groups: ", req.body.groups, typeof req.body.groups);
+    if (typeof req.body.groups == 'array' || typeof req.body.groups == 'object') {
+        user.groups = req.body.groups;
+    } else if (typeof req.body.groups == 'string') {
+        user.groups = req.body.groups.split(',');
+    }
+
     app.app_storage.addUser(req.params.app_id, user, DEFAULT_CALLBACK(res));
 });
 
@@ -155,11 +163,16 @@ app.get('/api/1/app/:app_id/user/:id?', middleware, function (req, res) {
 });
 
 app.put('/api/1/app/:app_id/user/:id', middleware, function (req, res) {
-    var user = {};
+    var user = { };
 
-    if (typeof req.body.groups == 'array') {
-        user.groups = req.body.groups;
+
+    user.$set = { user_name: req.body.user_name };
+    if (typeof req.body.groups == 'array' || typeof req.body.groups == 'object') {
+        user.$set.groups = req.body.groups;
+    } else if (typeof req.body.groups == 'string') {
+        user.$set.groups = req.body.groups.split(',');
     }
+
 
     app.app_storage.saveUser(req.params.app_id, user, DEFAULT_CALLBACK(res));
 });
