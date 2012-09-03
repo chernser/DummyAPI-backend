@@ -126,12 +126,14 @@ AppStorage.prototype = {
                 return;
             }
 
+            console.log("saving object: ", query_obj, object);
             collection.update(query_obj, object, {safe:true}, function (err, result) {
                 if (err != null) {
                     callback(err, null);
                     return;
                 }
 
+                console.log("result: ", err, result);
                 collection.find(query_obj, function (err, cursor) {
                     if (err !== null) {
                         callback(err, null);
@@ -377,14 +379,14 @@ AppStorage.prototype = {
     getUser:function (app_id, user_id, callback) {
         var storage = this;
         var query = storage.createUserOrGroupQuery(app_id, user_id);
-        storage.get(this.USER_COL, query, callback);
+        storage.get(storage.USER_COL, query, callback);
     },
 
     getUserByName: function(app_id, user_name, callback) {
         var storage = this;
         var query = { app_id: parseInt(app_id), user_name: user_name};
 
-        storage.get(this.USER_COL, query, function(err, items) {
+        storage.get(storage.USER_COL, query, function(err, items) {
             if (err != null) {
                 callback(err, null);
                 return;
@@ -410,22 +412,41 @@ AppStorage.prototype = {
     saveUser:function (app_id, user, callback) {
         var storage = this;
         var query = storage.createUserOrGroupQuery(app_id, user.id);
-        storage.put(this.USER_COL, query, user, callback);
+
+        var user_object = { $set: {}};
+
+        if (typeof user.password == 'string') {
+            user_object.$set.password = user.password;
+        }
+
+        if (typeof user.user_name == 'string') {
+            user_object.$set.user_name = user.user_name;
+        }
+
+        if (typeof user.groups != 'undefined') {
+            user_object.$set.groups = user.groups;
+        }
+
+        storage.put(this.USER_COL, query, user_object, callback);
     },
 
     deleteUser:function (app_id, user_id, callback) {
         var storage = this;
         var query = storage.createUserOrGroupQuery(app_id, user_id);
-        storage.remove(this.USER_COL, query, callback);
+        storage.remove(storage.USER_COL, query, callback);
     },
 
     addUserGroup:function (app_id, user_group, callback) {
         var storage = this;
+        if (typeof user_group.name != 'string') {
+            callback('invalid', null);
+            return;
+        }
 
-        storage.getNextId(this.USER_GROUP_SEQ_NAME, function(err, id) {
-
+        storage.getNextId(storage.USER_GROUP_SEQ_NAME, function(err, id) {
             user_group.id = id;
-            storage.create(this.USER_GROUP_COL, user_group, callback);
+            user_group.app_id = parseInt(app_id);
+            storage.create(storage.USER_GROUP_COL, user_group, callback);
         })
 
     },
@@ -433,19 +454,26 @@ AppStorage.prototype = {
     getUserGroup:function (app_id, user_group_id, callback) {
         var storage = this;
         var query = storage.createUserOrGroupQuery(app_id, user_group_id);
-        storage.get(this.USER_GROUP_COL, query, callback);
+        storage.get(storage.USER_GROUP_COL, query, callback);
     },
 
     saveUserGroup: function(app_id, user_group, callback) {
         var storage = this;
         var query = storage.createUserOrGroupQuery(app_id, user_group.id);
-        storage.put(this.USER_GROUP_COL, query, user_group, callback);
+
+        var user_group_object = { $set: {}};
+
+        if (typeof user_group.name == 'string') {
+            user_group_object.$set.name = user_group.name;
+        }
+
+        storage.put(storage.USER_GROUP_COL, query, user_group_object, callback);
     },
 
     deleteUserGroup:function (app_id, user_group_id, callback) {
         var storage = this;
         var query = storage.createUserOrGroupQuery(app_id, user_group_id);
-        storage.remove(this.USER_GROUP_COL, query, callback);
+        storage.remove(storage.USER_GROUP_COL, query, callback);
     },
 
     addObjectType:function (app_id, objectType, callback) {

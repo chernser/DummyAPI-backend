@@ -137,7 +137,7 @@ app.post('/api/1/app/:app_id/new_access_token', middleware, function (req, res) 
     app.app_storage.renewAccessToken(req.params.app_id, DEFAULT_CALLBACK(res));
 });
 
-// Users and gorup management
+// Users and group management
 app.post('/api/1/app/:app_id/user/?', middleware, function (req, res) {
     var user = {
         user_name:req.body.user_name,
@@ -163,14 +163,16 @@ app.get('/api/1/app/:app_id/user/:id?', middleware, function (req, res) {
 });
 
 app.put('/api/1/app/:app_id/user/:id', middleware, function (req, res) {
-    var user = { };
+    var user = {
+        id:req.params.id,
+        password: req.body.password,
+        user_name: req.body.user_name
+    };
 
-
-    user.$set = { user_name: req.body.user_name };
     if (typeof req.body.groups == 'array' || typeof req.body.groups == 'object') {
-        user.$set.groups = req.body.groups;
+        user.groups = req.body.groups;
     } else if (typeof req.body.groups == 'string') {
-        user.$set.groups = req.body.groups.split(',');
+        user.groups = req.body.groups.split(',');
     }
 
 
@@ -183,6 +185,20 @@ app.delete('/api/1/app/:app_id/user/:id', middleware, function (req, res) {
 
 app.get('/api/1/app/:app_id/user_group/:id?', middleware, function (req, res) {
     app.app_storage.getUserGroup(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res, !_.isUndefined(req.params.id)));
+});
+
+app.post('/api/1/app/:app_id/user_group/', middleware, function(req, res) {
+    var user_group = { name: req.body.name};
+    app.app_storage.addUserGroup(req.params.app_id, user_group, DEFAULT_CALLBACK(res));
+});
+
+app.put('/api/1/app/:app_id/user_group/:id', middleware, function(req, res) {
+    var user_group = { id: req.params.id, name: req.body.name};
+    app.app_storage.saveUserGroup(req.params.app_id, user_group, DEFAULT_CALLBACK(res));
+});
+
+app.delete('/api/1/app/:app_id/user_group/:id', middleware, function(req, res) {
+    app.app_storage.deleteUserGroup(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res));
 });
 
 // Object types
