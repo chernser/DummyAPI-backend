@@ -491,8 +491,13 @@ AppStorage.prototype = {
         }
 
         var storage = this;
-        storage.getApplication(app_id, function (err, application) {
+        storage.getApplication(app_id, function (err, applications) {
+            if (applications === null) {
+                callback('not_found', null);
+                return;
+            }
 
+            var application = applications[0];
             for (var index in application.object_types) {
                 if (application.object_types[index].name == objectType.name) {
                     if (typeof callback == 'function') {
@@ -518,23 +523,33 @@ AppStorage.prototype = {
 
     getObjectType:function (app_id, objectTypeName, callback) {
         var storage = this;
-        storage.getApplication(app_id, function (err, application) {
-            if (typeof application == 'undefined') {
+        storage.getApplication(app_id, function (err, applications) {
+            if (applications === null) {
                 callback('not_found', null);
                 return;
             }
 
+            var application = applications[0];
+
             if (objectTypeName != '*') {
+
                 for (var index in application.object_types) {
                     if (application.object_types[index].name == objectTypeName) {
                         if (typeof callback == 'function') {
-                            callback(null, application.object_types[index]);
+                            var object_type = application.object_types[index];
+                            object_type.app_id = app_id;
+
+                            console.log("object type to return: ", object_type);
+                            callback(null, object_type);
                         }
                         return;
                     }
                 }
                 callback('not_found', null);
             } else {
+                for (var index in application.object_types) {
+                    application.object_types[index].app_id = app_id;
+                }
                 callback(null, application.object_types);
             }
 
@@ -544,12 +559,13 @@ AppStorage.prototype = {
 
     getObjectTypeByRoute:function (app_id, routePattern, callback) {
         var storage = this;
-        storage.getApplication(app_id, function (err, application) {
-            if (typeof application == 'undefined' || application == null) {
+        storage.getApplication(app_id, function (err, applications) {
+            if (applications === null) {
                 callback('not_found', null);
                 return;
             }
 
+            var application = applications[0];
             for (var index in application.object_types) {
                 if (application.object_types[index].route_pattern == routePattern) {
                     if (typeof callback == 'function') {
@@ -566,8 +582,13 @@ AppStorage.prototype = {
 
     saveObjectType:function (app_id, objectType, callback) {
         var storage = this;
-        storage.getApplication(app_id, function (application) {
+        storage.getApplication(app_id, function (applications) {
+            if (applications === null ) {
+                callback('not_found', null);
+                return;
+            }
 
+            var application = applications[0];
             var doUpdate = false;
             for (var index in application.object_types) {
 
@@ -601,7 +622,13 @@ AppStorage.prototype = {
 
     deleteObjectType:function (app_id, object_type_name, callback) {
         var storage = this;
-        storage.getApplication(app_id, function (application) {
+        storage.getApplication(app_id, function (applications) {
+            if (applications === null) {
+                callback('not_found', null);
+                return;
+            }
+
+            var application = applications[0];
             var doUpdate = false;
             var newObjectTypesList = [];
             // TODO: rework

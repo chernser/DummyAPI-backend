@@ -245,26 +245,26 @@ var CALLBACK_WITH_CALLBACK = function (res, callback) {
     };
 };
 
-app.post('/api/1/app/:app_id/object_type/:name/?', function (req, res) {
+app.post('/api/1/app/:app_id/object/:name/?', function (req, res) {
     app.app_storage.addObjectInstace(req.params.app_id, req.params.name, req.body,
         CALLBACK_WITH_CALLBACK(res, function (objects) {
             app.app_api.notifyResourceCreated(req.params.app_id, objects);
         }));
 });
 
-app.get('/api/1/app/:app_id/object_type/:name/:id?', function (req, res) {
+app.get('/api/1/app/:app_id/object/:name/:id?', function (req, res) {
     app.app_storage.getObjectInstances(req.params.app_id, req.params.name, req.params.id,
         DEFAULT_CALLBACK(req));
 });
 
-app.put('/api/1/app/:app_id/object_type/:name/:id', function (req, res) {
+app.put('/api/1/app/:app_id/object/:name/:id', function (req, res) {
     app.app_storage.saveObjectInstance(req.params.app_id, req.params.name, req.params.id, req.body,
         CALLBACK_WITH_CALLBACK(res, function (objects) {
             app.app_api.notifyResourceChanged(req.params.app_id, objects);
         }));
 });
 
-app.delete('/api/1/app/:app_id/object_type/:name/:id', function (req, res) {
+app.delete('/api/1/app/:app_id/object/:name/:id', function (req, res) {
     app.app_storage.deleteObjectInstance(req.params.app_id, req.params.name, req.params.id,
         CALLBACK_WITH_CALLBACK(res, function () {
             app.app_api.notifyResourceDeleted(req.params.app_id, {id:req.params.id, object_type:req.params.name});
