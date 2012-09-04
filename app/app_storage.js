@@ -584,7 +584,7 @@ AppStorage.prototype = {
 
     saveObjectType:function (app_id, objectType, callback) {
         var storage = this;
-        storage.getApplication(app_id, function (applications) {
+        storage.getApplication(app_id, function (err, applications) {
             if (applications === null ) {
                 callback('not_found', null);
                 return;
@@ -600,6 +600,7 @@ AppStorage.prototype = {
                     // Copy allowed to change fields
                     existing.route_pattern = objectType.route_pattern;
                     existing.proxy_fun_code = objectType.proxy_fun_code;
+                    existing.id_field = objectType.id_field;
 
                     // finally copy existing to response object
                     objectType = existing;
@@ -625,7 +626,7 @@ AppStorage.prototype = {
 
     deleteObjectType:function (app_id, object_type_name, callback) {
         var storage = this;
-        storage.getApplication(app_id, function (applications) {
+        storage.getApplication(app_id, function (err, applications) {
             if (applications === null) {
                 callback('not_found', null);
                 return;

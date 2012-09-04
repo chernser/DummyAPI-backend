@@ -220,7 +220,9 @@ app.post('/api/1/app/:app_id/object_type/?', middleware, function (req, res) {
 app.put('/api/1/app/:app_id/object_type/:name', middleware, function (req, res) {
     var object_type = {
         name:req.params.name,
-        route_pattern:req.body.route_pattern
+        route_pattern:req.body.route_pattern,
+        id_field: req.body.id_field,
+        proxy_fun_code: req.body.proxy_fun_code
     };
     app.app_storage.saveObjectType(req.params.app_id, object_type, DEFAULT_CALLBACK(res));
 });
@@ -247,6 +249,7 @@ var CALLBACK_WITH_CALLBACK = function (res, callback) {
 };
 
 app.post('/api/1/app/:app_id/object/:name/?', middleware, function (req, res) {
+    delete req.body._id;
     console.log("Creating instance: ", req.params.app_id, req.params.name, req.body);
     app.app_storage.addObjectInstace(req.params.app_id, req.params.name, req.body,
         CALLBACK_WITH_CALLBACK(res, function (objects) {
