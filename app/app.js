@@ -65,7 +65,7 @@ var DEFAULT_CALLBACK = function (res, single_result) {
         } else if (err == 'invalid') {
             res.send(400);
             return;
-        } else if (err != null) {
+        } else if (err !== null) {
             console.log(err, ':', new Error().stack);
             res.send(500);
             return;
@@ -73,7 +73,7 @@ var DEFAULT_CALLBACK = function (res, single_result) {
 
         if (single_result == true) {
 
-            if (_.isEmpty(objects)) {
+            if (_.isArray(objects) && _.isEmpty(objects)) {
                 res.send(404);
                 return;
             } else if (_.isArray(objects)) {
@@ -124,7 +124,8 @@ app.post('/api/1/app/?', middleware, function (req, res) {
 
 app.put('/api/1/app/:app_id', middleware, function (req, res) {
     var application = {
-        id:req.params.app_id
+        id:req.params.app_id,
+        notify_proxy_fun: req.body.notify_proxy_fun
     };
     app.app_storage.saveApplication(application, DEFAULT_CALLBACK(res));
 });
@@ -133,8 +134,15 @@ app.delete('/api/1/app/:app_id', middleware, function (req, res) {
     app.app_storage.deleteApplication(req.params.app_id, DEFAULT_CALLBACK(res));
 });
 
+
+// Application 'actions'
+
 app.post('/api/1/app/:app_id/new_access_token', middleware, function (req, res) {
     app.app_storage.renewAccessToken(req.params.app_id, DEFAULT_CALLBACK(res));
+});
+
+app.post('/api/1/app/:app_id/send_event', middleware, function(req, res) {
+    app.app_api.send_event(req.params.app_id, req.body.name, req.body.data,DEFAULT_CALLBACK(res));
 });
 
 // Users and group management

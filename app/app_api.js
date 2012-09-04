@@ -341,7 +341,7 @@ AppApi.prototype.getObjectTypeByRoute = function (app_id, route_pattern, callbac
 
 function getProxy(objectType, defaultProxy) {
     if (typeof objectType.proxy_fun_code != 'undefined') {
-        var eval_result = eval(objectType.proxy_fun_code);
+        var eval_result = eval(objectType.proxy_code);
         if (typeof proxy == 'undefined') {
             return defaultProxy;
         }
@@ -547,14 +547,17 @@ AppApi.prototype.notifyApplicationClients = function(app_id, event) {
     return notified;
 };
 
-AppApi.prototype.send_event = function (app_id, eventName, eventData) {
+AppApi.prototype.send_event = function (app_id, eventName, eventData, callback) {
     var api = this;
 
     api.app_storage.getApplication(app_id, function (err, application) {
         var proxy = getNotifyProxy(application);
         var event = proxy({name:eventName, type:'event'}, eventData);
 
-        api.notifyApplicationClients(app_id, event);
+        var result = api.notifyApplicationClients(app_id, event);
+        if (typeof callback == 'function') {
+            callback(null, {notified: result});
+        }
     });
 };
 

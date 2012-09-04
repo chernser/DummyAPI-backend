@@ -228,7 +228,12 @@ AppStorage.prototype = {
 
         var app_id = parseInt(application.id);
 
-        storage.put(storage.APPLICATIONS_COL, {id: app_id}, application, function (err, saved) {
+        var object = { $set: {}};
+        if (typeof application.notify_proxy_fun == 'string') {
+            object.$set.notify_proxy_fun = application.notify_proxy_fun;
+        }
+
+        storage.put(storage.APPLICATIONS_COL, {id: app_id}, object, function (err, saved) {
             if (saved == null) {
                 callback('not_found');
                 return;
