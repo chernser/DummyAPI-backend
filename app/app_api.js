@@ -235,7 +235,8 @@ var AppApi = module.exports.AppApi = function (app_storage) {
                 // TODO: move to separate function
                 app_storage.getObjectType(req.app_id, resource, function (err, object_type) {
                     if (err != null || object_type == null) {
-                        res.send(500, err);
+                        console.log(err);
+                        res.send(500);
                         return;
                     }
 
@@ -243,7 +244,8 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
                     app_storage.getObjectInstances(req.app_id, resource, id, function (err, resources) {
                         if (err != null) {
-                            res.send(500, err);
+                            console.log(err);
+                            res.send(500);
                             return;
                         }
 

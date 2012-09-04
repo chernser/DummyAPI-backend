@@ -233,6 +233,11 @@ AppStorage.prototype = {
             object.$set.notify_proxy_fun = application.notify_proxy_fun;
         }
 
+
+        if (Array.isArray(application.object_types)) {
+            object.$set.object_types = application.object_types;
+        }
+
         storage.put(storage.APPLICATIONS_COL, {id: app_id}, object, function (err, saved) {
             if (saved == null) {
                 callback('not_found');
@@ -258,9 +263,9 @@ AppStorage.prototype = {
             storage.remove(storage.USER_COL, {app_id: app_id});
             storage.remove(storage.USER_GROUP_COL, {app_id: app_id});
             storage.db.collection(storage.getResourceCollectionName(app_id), function(err, collection) {
-                collection.remove({});
+                collection.drop();
             });
-            callback();
+            callback(null, {removed: true});
         });
 
     },
@@ -519,6 +524,8 @@ AppStorage.prototype = {
             }
             application.object_types.push(objectType);
 
+            console.log("Saving object type: ", application);
+
             storage.saveApplication(application, function () {
                 if (typeof callback == 'function') {
                     callback(null, objectType);
@@ -653,8 +660,8 @@ AppStorage.prototype = {
             if (doUpdate) {
                 application.object_types = newObjectTypesList;
                 storage.saveApplication(application, function () {
-                    var resource_collection = storage.getResourceCollection(appId);
-                    resource_collection.remove({__objectType:object_type_name});
+                    var resource_collection_name = storage.getResourceCollectionName(app_id);
+                    storage.remove(resource_collection_name, {__objectType:object_type_name});
                     if (typeof callback == 'function') {
                         callback(null, true);
                     }
