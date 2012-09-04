@@ -117,8 +117,6 @@ app.post('/api/1/app/?', middleware, function (req, res) {
     var application = {
         name:req.body.name
     };
-
-    console.log("creating application: ", application);
     app.app_storage.addApplication(application, DEFAULT_CALLBACK(res));
 });
 
@@ -152,7 +150,6 @@ app.post('/api/1/app/:app_id/user/?', middleware, function (req, res) {
         password:req.body.password
     };
 
-    console.log("groups: ", req.body.groups, typeof req.body.groups);
     if (typeof req.body.groups == 'array' || typeof req.body.groups == 'object') {
         user.groups = req.body.groups;
     } else if (typeof req.body.groups == 'string') {
@@ -244,7 +241,6 @@ app.delete('/api/1/app/:app_id/object_type/:name', middleware, function (req, re
 //TODO: rework!!!
 var CALLBACK_WITH_CALLBACK = function (res, callback) {
     return function (err, objects) {
-        console.log("callback: ", err, objects);
         if (err != null) {
             console.log(err, ':', new Error().stack);
             res.send(500);
@@ -258,7 +254,6 @@ var CALLBACK_WITH_CALLBACK = function (res, callback) {
 
 app.post('/api/1/app/:app_id/object/:name/?', middleware, function (req, res) {
     delete req.body._id;
-    console.log("Creating instance: ", req.params.app_id, req.params.name, req.body);
     app.app_storage.addObjectInstace(req.params.app_id, req.params.name, req.body,
         CALLBACK_WITH_CALLBACK(res, function (objects) {
             app.app_api.notifyResourceCreated(req.params.app_id, objects);

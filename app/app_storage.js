@@ -126,14 +126,12 @@ AppStorage.prototype = {
                 return;
             }
 
-            console.log("saving object: ", query_obj, object);
             collection.update(query_obj, object, {safe:true}, function (err, result) {
                 if (err != null) {
                     callback(err, null);
                     return;
                 }
 
-                console.log("result: ", err, result);
                 collection.find(query_obj, function (err, cursor) {
                     if (err !== null) {
                         callback(err, null);
@@ -165,7 +163,6 @@ AppStorage.prototype = {
 
 
             collection.remove(query_obj, function (err, result) {
-                console.log("result ", err, result);
                 callback(err, {removed:true});
             });
         });
@@ -218,7 +215,6 @@ AppStorage.prototype = {
             application.id = app_id;
             application.object_types = [];
             application.access_token = storage.generateAccessToken();
-            console.log("application: ", application);
             storage.create(storage.APPLICATIONS_COL, application, callback);
         });
     },
@@ -292,9 +288,7 @@ AppStorage.prototype = {
             var new_access_token = storage.generateAccessToken();
             application.access_token = new_access_token;
 
-            console.log("application: ", application);
             storage.saveApplication(application, function (err, saved) {
-                console.log('renewal result', application, err, saved);
                 if (err == null) {
                     storage.updateAppAccessTokens(app_id, old_access_token, new_access_token);
                 }
@@ -523,9 +517,6 @@ AppStorage.prototype = {
                 application.object_types = [];
             }
             application.object_types.push(objectType);
-
-            console.log("Saving object type: ", application);
-
             storage.saveApplication(application, function () {
                 if (typeof callback == 'function') {
                     callback(null, objectType);
@@ -553,7 +544,6 @@ AppStorage.prototype = {
                             var object_type = application.object_types[index];
                             object_type.app_id = app_id;
 
-                            console.log("object type to return: ", object_type);
                             callback(null, object_type);
                         }
                         return;
@@ -656,7 +646,6 @@ AppStorage.prototype = {
                 newObjectTypesList.push(application.object_types[index]);
             }
 
-            console.log("Deleting object type: ", object_type_name, application);
             if (doUpdate) {
                 application.object_types = newObjectTypesList;
                 storage.saveApplication(application, function () {

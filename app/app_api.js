@@ -216,6 +216,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
         app_storage.getUserByName(req.app_id, user_name, function (err, user) {
             if (err != null) {
+                console.log(err);
                 res.send(500, err);
                 return;
             }
@@ -235,13 +236,12 @@ var AppApi = module.exports.AppApi = function (app_storage) {
                 // TODO: move to separate function
                 app_storage.getObjectType(req.app_id, resource, function (err, object_type) {
                     if (err != null || object_type == null) {
-                        console.log(err);
+                        console.log(err, resource);
                         res.send(500);
                         return;
                     }
 
                     var id = {id:resource_id, id_field:object_type.id_field};
-
                     app_storage.getObjectInstances(req.app_id, resource, id, function (err, resources) {
                         if (err != null) {
                             console.log(err);
@@ -343,7 +343,7 @@ AppApi.prototype.getObjectTypeByRoute = function (app_id, route_pattern, callbac
 
 function getProxy(objectType, defaultProxy) {
     if (typeof objectType.proxy_fun_code != 'undefined') {
-        var eval_result = eval(objectType.proxy_code);
+        var eval_result = eval(objectType.proxy_fun_code);
         if (typeof proxy == 'undefined') {
             return defaultProxy;
         }
@@ -399,7 +399,6 @@ AppApi.prototype.handleGet = function (app_id, url, callback) {
             return;
         }
         var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
-
         id = getObjectId(id, objectType);
         api.app_storage.getObjectInstances(app_id, objectType.name, id, function (err, resources) {
             if (typeof resources != 'undefined' && resources !== null && resources.length >= 0) {
@@ -447,7 +446,6 @@ AppApi.prototype.handlePost = function (app_id, url, instance, callback) {
     var route_pattern = route_info.route_pattern;
 
     api.getObjectTypeByRoute(app_id, route_pattern, function (err, objectType) {
-        console.log(">> ",err, objectType);
         if (err !== null) {
             callback(err, null);
             return;
