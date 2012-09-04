@@ -163,7 +163,9 @@ AppStorage.prototype = {
                 return;
             }
 
+
             collection.remove(query_obj, function (err, result) {
+                console.log("result ", err, result);
                 callback(err, {removed:true});
             });
         });
@@ -593,13 +595,14 @@ AppStorage.prototype = {
             for (var index in application.object_types) {
 
                 if (application.object_types[index].name == objectType.name) {
-                    var exiting = application.object_types[index];
+                    var existing = application.object_types[index];
 
                     // Copy allowed to change fields
-                    exiting.route_pattern = objectType.route_pattern;
+                    existing.route_pattern = objectType.route_pattern;
+                    existing.proxy_fun_code = objectType.proxy_fun_code;
 
                     // finally copy existing to response object
-                    objectType = exiting;
+                    objectType = existing;
                     doUpdate = true;
                     break;
                 }
@@ -728,22 +731,17 @@ AppStorage.prototype = {
                 callback(err, null);
                 return;
             }
-            var cleaned_items = [];
 
-            for (var index in items) {
-                delete items[index]['__objectType'];
-                cleaned_items.push(items[index]);
-            }
-            callback(null, cleaned_items);
+            callback(null, items);
         });
     },
 
-    deleteObjectInstance:function (appId, objectTypeName, instanceId, callback) {
+    deleteObjectInstance:function (app_id, object_type_name, instance_id, callback) {
         var collection_name = this.getResourceCollectionName(app_id);
         var query = this.createInstanceQuery(instance_id, object_type_name);
 
         var storage = this;
-        storage.remove(query, callback);
+        storage.remove(collection_name, query, callback);
     },
 
 

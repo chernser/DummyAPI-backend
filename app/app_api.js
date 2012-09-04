@@ -340,8 +340,8 @@ AppApi.prototype.getObjectTypeByRoute = function (app_id, route_pattern, callbac
 };
 
 function getProxy(objectType, defaultProxy) {
-    if (typeof objectType.proxy_code != 'undefined') {
-        var eval_result = eval(objectType.proxy_code);
+    if (typeof objectType.proxy_fun_code != 'undefined') {
+        var eval_result = eval(objectType.proxy_fun_code);
         if (typeof proxy == 'undefined') {
             return defaultProxy;
         }
