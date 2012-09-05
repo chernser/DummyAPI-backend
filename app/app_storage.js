@@ -224,14 +224,18 @@ AppStorage.prototype = {
 
         var app_id = parseInt(application.id);
 
+        // TODO: rework
         var object = { $set: {}};
         if (typeof application.notify_proxy_fun == 'string') {
             object.$set.notify_proxy_fun = application.notify_proxy_fun;
         }
 
-
         if (Array.isArray(application.object_types)) {
             object.$set.object_types = application.object_types;
+        }
+
+        if (typeof application.description == 'string') {
+            object.$set.description = application.description;
         }
 
         storage.put(storage.APPLICATIONS_COL, {id: app_id}, object, function (err, saved) {

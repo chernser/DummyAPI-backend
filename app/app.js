@@ -115,7 +115,8 @@ app.get('/api/1/app/:app_id?', middleware, function (req, res) {
 
 app.post('/api/1/app/?', middleware, function (req, res) {
     var application = {
-        name:req.body.name
+        name:req.body.name,
+        description: req.body.description
     };
     app.app_storage.addApplication(application, DEFAULT_CALLBACK(res));
 });
@@ -123,7 +124,8 @@ app.post('/api/1/app/?', middleware, function (req, res) {
 app.put('/api/1/app/:app_id', middleware, function (req, res) {
     var application = {
         id:req.params.app_id,
-        notify_proxy_fun: req.body.notify_proxy_fun
+        notify_proxy_fun: req.body.notify_proxy_fun,
+        description: req.body.description
     };
     app.app_storage.saveApplication(application, DEFAULT_CALLBACK(res));
 });
