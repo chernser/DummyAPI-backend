@@ -65,6 +65,9 @@ var DEFAULT_CALLBACK = function (res, single_result) {
         } else if (err == 'invalid') {
             res.send(400);
             return;
+        } else if (err == 'already_exists') {
+            res.send(409);
+            return;
         } else if (err !== null) {
             console.log(err, ':', new Error().stack);
             res.send(500);

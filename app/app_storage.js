@@ -511,7 +511,7 @@ AppStorage.prototype = {
             for (var index in application.object_types) {
                 if (application.object_types[index].name == objectType.name) {
                     if (typeof callback == 'function') {
-                        callback('already_exists', application.objtypes[index]);
+                        callback('already_exists', application.object_types[index]);
                     }
                     return;
                 }
