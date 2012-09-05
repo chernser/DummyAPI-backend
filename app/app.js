@@ -65,7 +65,7 @@ var DEFAULT_CALLBACK = function (res, single_result) {
         } else if (err == 'invalid') {
             res.send(400);
             return;
-        } else if (err != null) {
+        } else if (err !== null) {
             console.log(err, ':', new Error().stack);
             res.send(500);
             return;
@@ -73,7 +73,7 @@ var DEFAULT_CALLBACK = function (res, single_result) {
 
         if (single_result == true) {
 
-            if (_.isEmpty(objects)) {
+            if (_.isArray(objects) && _.isEmpty(objects)) {
                 res.send(404);
                 return;
             } else if (_.isArray(objects)) {
@@ -117,14 +117,13 @@ app.post('/api/1/app/?', middleware, function (req, res) {
     var application = {
         name:req.body.name
     };
-
-    console.log("creating application: ", application);
     app.app_storage.addApplication(application, DEFAULT_CALLBACK(res));
 });
 
 app.put('/api/1/app/:app_id', middleware, function (req, res) {
     var application = {
-        id:req.params.app_id
+        id:req.params.app_id,
+        notify_proxy_fun: req.body.notify_proxy_fun
     };
     app.app_storage.saveApplication(application, DEFAULT_CALLBACK(res));
 });
@@ -133,8 +132,15 @@ app.delete('/api/1/app/:app_id', middleware, function (req, res) {
     app.app_storage.deleteApplication(req.params.app_id, DEFAULT_CALLBACK(res));
 });
 
+
+// Application 'actions'
+
 app.post('/api/1/app/:app_id/new_access_token', middleware, function (req, res) {
     app.app_storage.renewAccessToken(req.params.app_id, DEFAULT_CALLBACK(res));
+});
+
+app.post('/api/1/app/:app_id/send_event', middleware, function(req, res) {
+    app.app_api.send_event(req.params.app_id, req.body.name, req.body.data,DEFAULT_CALLBACK(res));
 });
 
 // Users and group management
@@ -144,7 +150,6 @@ app.post('/api/1/app/:app_id/user/?', middleware, function (req, res) {
         password:req.body.password
     };
 
-    console.log("groups: ", req.body.groups, typeof req.body.groups);
     if (typeof req.body.groups == 'array' || typeof req.body.groups == 'object') {
         user.groups = req.body.groups;
     } else if (typeof req.body.groups == 'string') {
@@ -220,7 +225,9 @@ app.post('/api/1/app/:app_id/object_type/?', middleware, function (req, res) {
 app.put('/api/1/app/:app_id/object_type/:name', middleware, function (req, res) {
     var object_type = {
         name:req.params.name,
-        route_pattern:req.body.route_pattern
+        route_pattern:req.body.route_pattern,
+        id_field: req.body.id_field,
+        proxy_fun_code: req.body.proxy_fun_code
     };
     app.app_storage.saveObjectType(req.params.app_id, object_type, DEFAULT_CALLBACK(res));
 });
@@ -245,26 +252,27 @@ var CALLBACK_WITH_CALLBACK = function (res, callback) {
     };
 };
 
-app.post('/api/1/app/:app_id/object/:name/?', function (req, res) {
+app.post('/api/1/app/:app_id/object/:name/?', middleware, function (req, res) {
+    delete req.body._id;
     app.app_storage.addObjectInstace(req.params.app_id, req.params.name, req.body,
         CALLBACK_WITH_CALLBACK(res, function (objects) {
             app.app_api.notifyResourceCreated(req.params.app_id, objects);
         }));
 });
 
-app.get('/api/1/app/:app_id/object/:name/:id?', function (req, res) {
+app.get('/api/1/app/:app_id/object/:name/:id?', middleware, function (req, res) {
     app.app_storage.getObjectInstances(req.params.app_id, req.params.name, req.params.id,
-        DEFAULT_CALLBACK(req));
+        DEFAULT_CALLBACK(res, !_.isUndefined(req.params.id)));
 });
 
-app.put('/api/1/app/:app_id/object/:name/:id', function (req, res) {
+app.put('/api/1/app/:app_id/object/:name/:id', middleware, function (req, res) {
     app.app_storage.saveObjectInstance(req.params.app_id, req.params.name, req.params.id, req.body,
         CALLBACK_WITH_CALLBACK(res, function (objects) {
             app.app_api.notifyResourceChanged(req.params.app_id, objects);
         }));
 });
 
-app.delete('/api/1/app/:app_id/object/:name/:id', function (req, res) {
+app.delete('/api/1/app/:app_id/object/:name/:id', middleware, function (req, res) {
     app.app_storage.deleteObjectInstance(req.params.app_id, req.params.name, req.params.id,
         CALLBACK_WITH_CALLBACK(res, function () {
             app.app_api.notifyResourceDeleted(req.params.app_id, {id:req.params.id, object_type:req.params.name});

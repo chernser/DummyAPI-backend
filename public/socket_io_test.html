@@ -69,6 +69,9 @@
         });
 
         socket.on('test', function(event) {
+            if (typeof event !=  'string' ) {
+                event = JSON.stringify(event);
+            }
             out("Got test message: " + event);
         });
 
