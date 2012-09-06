@@ -30,6 +30,8 @@ function first(items) {
 }
 
 
+var util = require("util");
+
 /**
  * AppStorage is DAO class to manipulate everything, that stored in db
  * This class is implemented to 'talk' to mongodb only
@@ -501,8 +503,9 @@ AppStorage.prototype = {
         }
 
         var storage = this;
+
         storage.getApplication(app_id, function (err, applications) {
-            if (applications === null) {
+            if (applications === null || applications.length == 0) {
                 callback('not_found', null);
                 return;
             }
@@ -533,7 +536,7 @@ AppStorage.prototype = {
     getObjectType:function (app_id, objectTypeName, callback) {
         var storage = this;
         storage.getApplication(app_id, function (err, applications) {
-            if (applications === null) {
+            if (applications === null || applications.length == 0) {
                 callback('not_found', null);
                 return;
             }
@@ -568,7 +571,7 @@ AppStorage.prototype = {
     getObjectTypeByRoute:function (app_id, routePattern, callback) {
         var storage = this;
         storage.getApplication(app_id, function (err, applications) {
-            if (applications === null) {
+            if (applications === null || applications.length == 0) {
                 callback('not_found', null);
                 return;
             }
@@ -591,7 +594,7 @@ AppStorage.prototype = {
     saveObjectType:function (app_id, objectType, callback) {
         var storage = this;
         storage.getApplication(app_id, function (err, applications) {
-            if (applications === null ) {
+            if (applications === null  || applications.length == 0) {
                 callback('not_found', null);
                 return;
             }
@@ -633,7 +636,7 @@ AppStorage.prototype = {
     deleteObjectType:function (app_id, object_type_name, callback) {
         var storage = this;
         storage.getApplication(app_id, function (err, applications) {
-            if (applications === null) {
+            if (applications === null || applications.length == 0) {
                 callback('not_found', null);
                 return;
             }

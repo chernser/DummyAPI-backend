@@ -223,6 +223,7 @@ app.post('/api/1/app/:app_id/object_type/?', middleware, function (req, res) {
         route_pattern:req.body.route_pattern,
         id_field:req.body.id_field
     };
+    console.log("params: ", req.params);
     app.app_storage.addObjectType(req.params.app_id, object_type, DEFAULT_CALLBACK(res));
 });
 
@@ -277,7 +278,7 @@ app.put('/api/1/app/:app_id/object/:name/:id', middleware, function (req, res) {
         }));
 });
 
-app.delete('/api/1/app/:app_id/object/:name/:id', middleware, function (req, res) {
+app.delete('/api/1/app/:app_id/object/:name/:id?', middleware, function (req, res) {
     app.app_storage.deleteObjectInstance(req.params.app_id, req.params.name, req.params.id,
         CALLBACK_WITH_CALLBACK(res, function () {
             app.app_api.notifyResourceDeleted(req.params.app_id, {id:req.params.id, object_type:req.params.name});
