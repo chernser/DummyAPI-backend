@@ -235,7 +235,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
             if (typeof resource != 'string' || resource == '') {
                 // TODO: make configurable
-                res.cookie('session', user.access_token);
+                res.cookie('session', user.access_token, {path: "/"});
                 res.cookie('user_id', user.id);
 
                 res.json(user);
