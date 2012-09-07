@@ -200,6 +200,9 @@ var AppApi = module.exports.AppApi = function (app_storage) {
                 res.cookie(credentials.token_cookie, user.access_token, {});
             }
 
+            // TODO: make configurable
+            res.cookie('session', user.access_token);
+            res.cookie('user_id', user.id);
             res.json(response);
         });
 
@@ -231,6 +234,10 @@ var AppApi = module.exports.AppApi = function (app_storage) {
             var resource_id = typeof req.query.resource_id == 'undefined' ? user.id : req.query.resource_id;
 
             if (typeof resource != 'string' || resource == '') {
+                // TODO: make configurable
+                res.cookie('session', user.access_token);
+                res.cookie('user_id', user.id);
+
                 res.json(user);
             } else {
                 // TODO: move to separate function
@@ -252,6 +259,9 @@ var AppApi = module.exports.AppApi = function (app_storage) {
                         if (resources == null || resources.length == 0) {
                             res.send(404);
                         } else {
+                            // TODO: make configurable
+                            res.cookie('session', user.access_token);
+                            res.cookie('user_id', user.id);
                             res.json(resources[0]);
                         }
                     });
