@@ -51,7 +51,6 @@ var AppStorage = function (config, db) {
 
     this.db.ensureIndex('applications', {id:1}, {unique:true});
     this.db.ensureIndex('applications', {name:1}, {unique:true});
-    this.db.ensureIndex('application_users', {user_name:1}, {unique:true});
     this.db.ensureIndex('sequences', {name:1}, {unique:true});
     this.db.collection('sequences', function (err, collection) {
         collection.insert({name:AppStorage.prototype.APPLICATION_SEQ_NAME, value:1});
