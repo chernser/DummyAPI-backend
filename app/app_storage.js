@@ -30,7 +30,8 @@ function first(items) {
 }
 
 
-var util = require("util");
+var util = require("util"),
+    _ = require("underscore");
 
 /**
  * AppStorage is DAO class to manipulate everything, that stored in db
@@ -49,6 +50,8 @@ var AppStorage = function (config, db) {
     this.db = db;
 
     this.db.ensureIndex('applications', {id:1}, {unique:true});
+    this.db.ensureIndex('applications', {name:1}, {unique:true});
+    this.db.ensureIndex('application_users', {user_name:1}, {unique:true});
     this.db.ensureIndex('sequences', {name:1}, {unique:true});
     this.db.collection('sequences', function (err, collection) {
         collection.insert({name:AppStorage.prototype.APPLICATION_SEQ_NAME, value:1});
@@ -80,7 +83,10 @@ AppStorage.prototype = {
             }
 
             collection.insert(object, {safe:true}, function (err, docs) {
-                if (err != null) {
+                if (err != null && err.code == 11000) {
+                    callback('already_exists', null);
+                    return;
+                } else if (err != null) {
                     callback(err, null);
                     return;
                 }
@@ -272,6 +278,73 @@ AppStorage.prototype = {
         });
 
     },
+
+    copyCollection:function (source_collection_name, target_collection_name, query, callback) {
+        var storage = this;
+        storage.db.collection(source_collection_name, function (err, collection) {
+            collection.find({}, function (err, cursor) {
+                cursor.toArray(function (err, items) {
+                    storage.db.collection(target_collection_name, function (err, collection) {
+                        collection.insert(items, function (err, result) {
+                            callback(err, result);
+                        });
+                    });
+                });
+            });
+        });
+
+    },
+
+    cloneApplication:function (app_id, opts, callback) {
+        app_id = parseInt(app_id);
+
+        var storage = this;
+        storage.getApplication(app_id, function (err, applications) {
+            if (_.isEmpty(applications)) {
+                callback('not_found', null);
+                return;
+            }
+
+            var application = applications[0];
+            storage.getNextId(storage.APPLICATION_SEQ_NAME, function (err, id) {
+                if (err != null) {
+                    callback(err, null);
+                    return;
+                }
+
+                delete application._id;
+                application.id = parseInt(id);
+                if (_.isUndefined(opts.name)) {
+                    application.name += '_clone';
+                } else {
+                    application.name = opts.name;
+                }
+
+                application.access_token = storage.generateAccessToken();
+
+                storage.create(storage.APPLICATIONS_COL, application, function (err, saved) {
+                    if (err != null) {
+                        callback(err, null);
+                        return;
+                    }
+
+                    if (opts.clone_instances === true) {
+                        var source_collection_name = storage.getResourceCollectionName(app_id);
+                        var target_collection_name = storage.getResourceCollectionName(id);
+                        storage.copyCollection(source_collection_name, target_collection_name, {},
+                            function (err, result) {
+                                callback(err, application);
+                            });
+                    } else {
+                        callback(null, application);
+                    }
+                });
+            });
+
+
+        });
+    },
+
 
     generateAccessToken:function () {
         return this.crypto.randomBytes(24).toString('hex');

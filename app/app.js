@@ -148,6 +148,10 @@ app.post('/api/1/app/:app_id/send_event', middleware, function (req, res) {
     app.app_api.send_event(req.params.app_id, req.body.name, req.body.data, DEFAULT_CALLBACK(res));
 });
 
+app.post('/api/1/app/:app_id/clone', middleware, function(req, res) {
+    app.app_storage.cloneApplication(req.params.app_id, req.body, DEFAULT_CALLBACK(res))
+});
+
 // Users and group management
 function getUserFromReq(req) {
     var user = {
