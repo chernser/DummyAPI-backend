@@ -30,6 +30,9 @@ function first(items) {
 }
 
 
+var util = require("util"),
+    _ = require("underscore");
+
 /**
  * AppStorage is DAO class to manipulate everything, that stored in db
  * This class is implemented to 'talk' to mongodb only
@@ -47,6 +50,8 @@ var AppStorage = function (config, db) {
     this.db = db;
 
     this.db.ensureIndex('applications', {id:1}, {unique:true});
+    this.db.ensureIndex('applications', {name:1}, {unique:true});
+    this.db.ensureIndex('application_users', {user_name:1}, {unique:true});
     this.db.ensureIndex('sequences', {name:1}, {unique:true});
     this.db.collection('sequences', function (err, collection) {
         collection.insert({name:AppStorage.prototype.APPLICATION_SEQ_NAME, value:1});
@@ -62,7 +67,8 @@ module.exports.AppStorage = AppStorage;
 
 AppStorage.prototype = {
 
-    dummyCallback: function() {},
+    dummyCallback:function () {
+    },
 
     create:function (collection_name, object, callback) {
         if (typeof callback != 'function') {
@@ -76,8 +82,11 @@ AppStorage.prototype = {
                 return;
             }
 
-            collection.insert(object, {safe: true}, function (err, docs) {
-                if (err != null) {
+            collection.insert(object, {safe:true}, function (err, docs) {
+                if (err != null && err.code == 11000) {
+                    callback('already_exists', null);
+                    return;
+                } else if (err != null) {
                     callback(err, null);
                     return;
                 }
@@ -190,7 +199,7 @@ AppStorage.prototype = {
 
 
     // Constatns
-    GET_ALL_QUERY: {},
+    GET_ALL_QUERY:{},
     APPLICATIONS_COL:'applications',
     APPLICATION_SEQ_NAME:'appSeqNumber',
     USER_COL:'application_users',
@@ -225,7 +234,7 @@ AppStorage.prototype = {
         var app_id = parseInt(application.id);
 
         // TODO: rework
-        var object = { $set: {}};
+        var object = { $set:{}};
         if (typeof application.notify_proxy_fun == 'string') {
             object.$set.notify_proxy_fun = application.notify_proxy_fun;
         }
@@ -238,7 +247,7 @@ AppStorage.prototype = {
             object.$set.description = application.description;
         }
 
-        storage.put(storage.APPLICATIONS_COL, {id: app_id}, object, function (err, saved) {
+        storage.put(storage.APPLICATIONS_COL, {id:app_id}, object, function (err, saved) {
             if (saved == null) {
                 callback('not_found');
                 return;
@@ -250,7 +259,7 @@ AppStorage.prototype = {
 
     getApplication:function (app_id, callback) {
         var storage = this;
-        var query = typeof app_id != 'undefined' ? {id: parseInt(app_id)} : storage.GET_ALL_QUERY;
+        var query = typeof app_id != 'undefined' ? {id:parseInt(app_id)} : storage.GET_ALL_QUERY;
         storage.get(storage.APPLICATIONS_COL, query, callback);
     },
 
@@ -259,16 +268,83 @@ AppStorage.prototype = {
         app_id = parseInt(app_id);
 
         var storage = this;
-        storage.remove(storage.APPLICATIONS_COL, {id:app_id}, function() {
-            storage.remove(storage.USER_COL, {app_id: app_id});
-            storage.remove(storage.USER_GROUP_COL, {app_id: app_id});
-            storage.db.collection(storage.getResourceCollectionName(app_id), function(err, collection) {
+        storage.remove(storage.APPLICATIONS_COL, {id:app_id}, function () {
+            storage.remove(storage.USER_COL, {app_id:app_id});
+            storage.remove(storage.USER_GROUP_COL, {app_id:app_id});
+            storage.db.collection(storage.getResourceCollectionName(app_id), function (err, collection) {
                 collection.drop();
             });
-            callback(null, {removed: true});
+            callback(null, {removed:true});
         });
 
     },
+
+    copyCollection:function (source_collection_name, target_collection_name, query, callback) {
+        var storage = this;
+        storage.db.collection(source_collection_name, function (err, collection) {
+            collection.find({}, function (err, cursor) {
+                cursor.toArray(function (err, items) {
+                    storage.db.collection(target_collection_name, function (err, collection) {
+                        collection.insert(items, function (err, result) {
+                            callback(err, result);
+                        });
+                    });
+                });
+            });
+        });
+
+    },
+
+    cloneApplication:function (app_id, opts, callback) {
+        app_id = parseInt(app_id);
+
+        var storage = this;
+        storage.getApplication(app_id, function (err, applications) {
+            if (_.isEmpty(applications)) {
+                callback('not_found', null);
+                return;
+            }
+
+            var application = applications[0];
+            storage.getNextId(storage.APPLICATION_SEQ_NAME, function (err, id) {
+                if (err != null) {
+                    callback(err, null);
+                    return;
+                }
+
+                delete application._id;
+                application.id = parseInt(id);
+                if (_.isUndefined(opts.name)) {
+                    application.name += '_clone';
+                } else {
+                    application.name = opts.name;
+                }
+
+                application.access_token = storage.generateAccessToken();
+
+                storage.create(storage.APPLICATIONS_COL, application, function (err, saved) {
+                    if (err != null) {
+                        callback(err, null);
+                        return;
+                    }
+
+                    if (opts.clone_instances === true) {
+                        var source_collection_name = storage.getResourceCollectionName(app_id);
+                        var target_collection_name = storage.getResourceCollectionName(id);
+                        storage.copyCollection(source_collection_name, target_collection_name, {},
+                            function (err, result) {
+                                callback(err, application);
+                            });
+                    } else {
+                        callback(null, application);
+                    }
+                });
+            });
+
+
+        });
+    },
+
 
     generateAccessToken:function () {
         return this.crypto.randomBytes(24).toString('hex');
@@ -303,9 +379,9 @@ AppStorage.prototype = {
         });
     },
 
-    application_access_tokens: {},
+    application_access_tokens:{},
 
-    updateAppAccessTokens: function(app_id, old_access_token, access_token) {
+    updateAppAccessTokens:function (app_id, old_access_token, access_token) {
         try {
             delete this.application_access_tokens[old_access_token];
         } catch (e) {
@@ -314,13 +390,13 @@ AppStorage.prototype = {
         this.application_access_tokens[access_token] = app_id;
     },
 
-    getAppIdByAccessToken: function(access_token, callback)  {
+    getAppIdByAccessToken:function (access_token, callback) {
         var app_id = this.application_access_tokens[access_token];
-        if (typeof  app_id == 'number' ) {
+        if (typeof  app_id == 'number') {
             callback(null, app_id);
         } else {
             var storage = this;
-            storage.get(storage.APPLICATIONS_COL, {access_token: access_token}, function(err, items) {
+            storage.get(storage.APPLICATIONS_COL, {access_token:access_token}, function (err, items) {
                 if (err != null) {
                     callback(err, null);
                     return;
@@ -364,8 +440,8 @@ AppStorage.prototype = {
         }
 
         var storage = this;
-        storage.getNextId(storage.USER_SEQ_NAME, function(err, id) {
-            user.id = id;
+        storage.getNextId(storage.USER_SEQ_NAME, function (err, id) {
+            user.id = parseInt(id);
             user.app_id = parseInt(app_id);
             user.access_token = storage.generateAccessToken();
             storage.create(storage.USER_COL, user, callback);
@@ -373,16 +449,16 @@ AppStorage.prototype = {
 
     },
 
-    renewUserAccessToken:function(app_id, user_id, callback) {
+    renewUserAccessToken:function (app_id, user_id, callback) {
         var storage = this;
         var new_access_token = storage.generateAccessToken();
-        storage.put(storage.USER_COL, {id: user_id}, {$set: {access_token: new_access_token}}, function(err, saved) {
+        storage.put(storage.USER_COL, {id:user_id}, {$set:{access_token:new_access_token}}, function (err, saved) {
             if (err != null) {
                 callback(err, null);
                 return;
             }
 
-            callback(null, {access_token: new_access_token});
+            callback(null, {access_token:new_access_token});
         });
     },
 
@@ -392,11 +468,11 @@ AppStorage.prototype = {
         storage.get(storage.USER_COL, query, callback);
     },
 
-    getUserByName: function(app_id, user_name, callback) {
+    getUserByName:function (app_id, user_name, callback) {
         var storage = this;
-        var query = { app_id: parseInt(app_id), user_name: user_name};
+        var query = { app_id:parseInt(app_id), user_name:user_name};
 
-        storage.get(storage.USER_COL, query, function(err, items) {
+        storage.get(storage.USER_COL, query, function (err, items) {
             if (err != null) {
                 callback(err, null);
                 return;
@@ -406,10 +482,10 @@ AppStorage.prototype = {
         });
     },
 
-    getUserByAccessToken: function(access_token, callback) {
+    getUserByAccessToken:function (access_token, callback) {
         var storage = this;
-        var query = {access_token: access_token};
-        storage.get(this.USER_COL, query, function(err, items) {
+        var query = {access_token:access_token};
+        storage.get(this.USER_COL, query, function (err, items) {
             if (err != null) {
                 callback(err, null);
                 return;
@@ -423,7 +499,7 @@ AppStorage.prototype = {
         var storage = this;
         var query = storage.createUserOrGroupQuery(app_id, user.id);
 
-        var user_object = { $set: {}};
+        var user_object = { $set:{}};
 
         if (typeof user.password == 'string') {
             user_object.$set.password = user.password;
@@ -437,6 +513,13 @@ AppStorage.prototype = {
             user_object.$set.groups = user.groups;
         }
 
+        if (typeof user.resource == 'string') {
+            user_object.$set.resource = user.resource;
+        }
+
+        if (typeof user.resource_id == 'string') {
+            user_object.$set.resource_id = user.resource_id;
+        }
         storage.put(this.USER_COL, query, user_object, callback);
     },
 
@@ -453,7 +536,7 @@ AppStorage.prototype = {
             return;
         }
 
-        storage.getNextId(storage.USER_GROUP_SEQ_NAME, function(err, id) {
+        storage.getNextId(storage.USER_GROUP_SEQ_NAME, function (err, id) {
             user_group.id = id;
             user_group.app_id = parseInt(app_id);
             storage.create(storage.USER_GROUP_COL, user_group, callback);
@@ -467,11 +550,11 @@ AppStorage.prototype = {
         storage.get(storage.USER_GROUP_COL, query, callback);
     },
 
-    saveUserGroup: function(app_id, user_group, callback) {
+    saveUserGroup:function (app_id, user_group, callback) {
         var storage = this;
         var query = storage.createUserOrGroupQuery(app_id, user_group.id);
 
-        var user_group_object = { $set: {}};
+        var user_group_object = { $set:{}};
 
         if (typeof user_group.name == 'string') {
             user_group_object.$set.name = user_group.name;
@@ -501,8 +584,9 @@ AppStorage.prototype = {
         }
 
         var storage = this;
+
         storage.getApplication(app_id, function (err, applications) {
-            if (applications === null) {
+            if (applications === null || applications.length == 0) {
                 callback('not_found', null);
                 return;
             }
@@ -511,13 +595,13 @@ AppStorage.prototype = {
             for (var index in application.object_types) {
                 if (application.object_types[index].name == objectType.name) {
                     if (typeof callback == 'function') {
-                        callback('already_exists', application.objtypes[index]);
+                        callback('already_exists', application.object_types[index]);
                     }
                     return;
                 }
             }
 
-            if (typeof application.object_types == 'undefined' ) {
+            if (typeof application.object_types == 'undefined') {
                 application.object_types = [];
             }
             application.object_types.push(objectType);
@@ -533,7 +617,7 @@ AppStorage.prototype = {
     getObjectType:function (app_id, objectTypeName, callback) {
         var storage = this;
         storage.getApplication(app_id, function (err, applications) {
-            if (applications === null) {
+            if (applications === null || applications.length == 0) {
                 callback('not_found', null);
                 return;
             }
@@ -568,7 +652,7 @@ AppStorage.prototype = {
     getObjectTypeByRoute:function (app_id, routePattern, callback) {
         var storage = this;
         storage.getApplication(app_id, function (err, applications) {
-            if (applications === null) {
+            if (applications === null || applications.length == 0) {
                 callback('not_found', null);
                 return;
             }
@@ -591,7 +675,7 @@ AppStorage.prototype = {
     saveObjectType:function (app_id, objectType, callback) {
         var storage = this;
         storage.getApplication(app_id, function (err, applications) {
-            if (applications === null ) {
+            if (applications === null || applications.length == 0) {
                 callback('not_found', null);
                 return;
             }
@@ -633,7 +717,7 @@ AppStorage.prototype = {
     deleteObjectType:function (app_id, object_type_name, callback) {
         var storage = this;
         storage.getApplication(app_id, function (err, applications) {
-            if (applications === null) {
+            if (applications === null || applications.length == 0) {
                 callback('not_found', null);
                 return;
             }
@@ -704,7 +788,7 @@ AppStorage.prototype = {
             } else {
                 // Handle converting integer values
                 var tmpId = parseInt(id);
-                if (tmpId === NaN) {
+                if (isNaN(tmpId)) {
                     query[id_field] = id;
                 } else {
                     query[id_field] = tmpId;

@@ -10,6 +10,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
     var express = require('express')
         , socket_io = require('socket.io')
         , config = require('../config')
+        , _ = require('underscore')
         , api = this
         , app = null;
 
@@ -200,6 +201,9 @@ var AppApi = module.exports.AppApi = function (app_storage) {
                 res.cookie(credentials.token_cookie, user.access_token, {});
             }
 
+            // TODO: make configurable
+            res.cookie('session', user.access_token);
+            res.cookie('user_id', user.id);
             res.json(response);
         });
 
@@ -222,15 +226,23 @@ var AppApi = module.exports.AppApi = function (app_storage) {
             }
 
             if (user == null || user.password != password) {
-                console.log(user_name, password);
+                console.log(">>", user_name, password);
                 res.send(400);
                 return;
             }
 
-            var resource = req.query.resource;
-            var resource_id = typeof req.query.resource_id == 'undefined' ? user.id : req.query.resource_id;
+            var resource = _.isEmpty(user.resource) ? req.query.resource : user.resource;
+            var resource_id = _.isEmpty(user.resource_id) ? req.query.resource_id: user.resource_id;
+
+            if (_.isUndefined(resource_id)) {
+                resource_id = user.id;
+            }
 
             if (typeof resource != 'string' || resource == '') {
+                // TODO: make configurable
+                res.cookie('session', user.access_token, {path: "/"});
+                res.cookie('user_id', user.id, {path: "/"});
+
                 res.json(user);
             } else {
                 // TODO: move to separate function
@@ -252,6 +264,9 @@ var AppApi = module.exports.AppApi = function (app_storage) {
                         if (resources == null || resources.length == 0) {
                             res.send(404);
                         } else {
+                            // TODO: make configurable
+                            res.cookie('session', user.access_token);
+                            res.cookie('user_id', user.id);
                             res.json(resources[0]);
                         }
                     });

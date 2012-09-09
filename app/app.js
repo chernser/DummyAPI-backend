@@ -65,7 +65,10 @@ var DEFAULT_CALLBACK = function (res, single_result) {
         } else if (err == 'invalid') {
             res.send(400);
             return;
-        } else if (err !== null) {
+        } else if (err == 'already_exists') {
+            res.send(409);
+            return;
+        } else if (typeof err != 'undefined' && err !== null) {
             console.log(err, ':', new Error().stack);
             res.send(500);
             return;
@@ -116,7 +119,7 @@ app.get('/api/1/app/:app_id?', middleware, function (req, res) {
 app.post('/api/1/app/?', middleware, function (req, res) {
     var application = {
         name:req.body.name,
-        description: req.body.description
+        description:req.body.description
     };
     app.app_storage.addApplication(application, DEFAULT_CALLBACK(res));
 });
@@ -124,8 +127,8 @@ app.post('/api/1/app/?', middleware, function (req, res) {
 app.put('/api/1/app/:app_id', middleware, function (req, res) {
     var application = {
         id:req.params.app_id,
-        notify_proxy_fun: req.body.notify_proxy_fun,
-        description: req.body.description
+        notify_proxy_fun:req.body.notify_proxy_fun,
+        description:req.body.description
     };
     app.app_storage.saveApplication(application, DEFAULT_CALLBACK(res));
 });
@@ -141,15 +144,22 @@ app.post('/api/1/app/:app_id/new_access_token', middleware, function (req, res) 
     app.app_storage.renewAccessToken(req.params.app_id, DEFAULT_CALLBACK(res));
 });
 
-app.post('/api/1/app/:app_id/send_event', middleware, function(req, res) {
-    app.app_api.send_event(req.params.app_id, req.body.name, req.body.data,DEFAULT_CALLBACK(res));
+app.post('/api/1/app/:app_id/send_event', middleware, function (req, res) {
+    app.app_api.send_event(req.params.app_id, req.body.name, req.body.data, DEFAULT_CALLBACK(res));
+});
+
+app.post('/api/1/app/:app_id/clone', middleware, function(req, res) {
+    app.app_storage.cloneApplication(req.params.app_id, req.body, DEFAULT_CALLBACK(res))
 });
 
 // Users and group management
-app.post('/api/1/app/:app_id/user/?', middleware, function (req, res) {
+function getUserFromReq(req) {
     var user = {
+        id:req.params.id,
+        password:req.body.password,
         user_name:req.body.user_name,
-        password:req.body.password
+        resource:req.body.resource,
+        resource_id:req.body.resource_id
     };
 
     if (typeof req.body.groups == 'array' || typeof req.body.groups == 'object') {
@@ -158,6 +168,10 @@ app.post('/api/1/app/:app_id/user/?', middleware, function (req, res) {
         user.groups = req.body.groups.split(',');
     }
 
+    return user;
+}
+app.post('/api/1/app/:app_id/user/?', middleware, function (req, res) {
+    var user = getUserFromReq(req);
     app.app_storage.addUser(req.params.app_id, user, DEFAULT_CALLBACK(res));
 });
 
@@ -170,19 +184,7 @@ app.get('/api/1/app/:app_id/user/:id?', middleware, function (req, res) {
 });
 
 app.put('/api/1/app/:app_id/user/:id', middleware, function (req, res) {
-    var user = {
-        id:req.params.id,
-        password: req.body.password,
-        user_name: req.body.user_name
-    };
-
-    if (typeof req.body.groups == 'array' || typeof req.body.groups == 'object') {
-        user.groups = req.body.groups;
-    } else if (typeof req.body.groups == 'string') {
-        user.groups = req.body.groups.split(',');
-    }
-
-
+    var user = getUserFromReq(req);
     app.app_storage.saveUser(req.params.app_id, user, DEFAULT_CALLBACK(res));
 });
 
@@ -194,17 +196,17 @@ app.get('/api/1/app/:app_id/user_group/:id?', middleware, function (req, res) {
     app.app_storage.getUserGroup(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res, !_.isUndefined(req.params.id)));
 });
 
-app.post('/api/1/app/:app_id/user_group/', middleware, function(req, res) {
-    var user_group = { name: req.body.name};
+app.post('/api/1/app/:app_id/user_group/', middleware, function (req, res) {
+    var user_group = { name:req.body.name};
     app.app_storage.addUserGroup(req.params.app_id, user_group, DEFAULT_CALLBACK(res));
 });
 
-app.put('/api/1/app/:app_id/user_group/:id', middleware, function(req, res) {
-    var user_group = { id: req.params.id, name: req.body.name};
+app.put('/api/1/app/:app_id/user_group/:id', middleware, function (req, res) {
+    var user_group = { id:req.params.id, name:req.body.name};
     app.app_storage.saveUserGroup(req.params.app_id, user_group, DEFAULT_CALLBACK(res));
 });
 
-app.delete('/api/1/app/:app_id/user_group/:id', middleware, function(req, res) {
+app.delete('/api/1/app/:app_id/user_group/:id', middleware, function (req, res) {
     app.app_storage.deleteUserGroup(req.params.app_id, req.params.id, DEFAULT_CALLBACK(res));
 });
 
@@ -220,6 +222,7 @@ app.post('/api/1/app/:app_id/object_type/?', middleware, function (req, res) {
         route_pattern:req.body.route_pattern,
         id_field:req.body.id_field
     };
+    console.log("params: ", req.params);
     app.app_storage.addObjectType(req.params.app_id, object_type, DEFAULT_CALLBACK(res));
 });
 
@@ -228,8 +231,8 @@ app.put('/api/1/app/:app_id/object_type/:name', middleware, function (req, res) 
     var object_type = {
         name:req.params.name,
         route_pattern:req.body.route_pattern,
-        id_field: req.body.id_field,
-        proxy_fun_code: req.body.proxy_fun_code
+        id_field:req.body.id_field,
+        proxy_fun_code:req.body.proxy_fun_code
     };
     app.app_storage.saveObjectType(req.params.app_id, object_type, DEFAULT_CALLBACK(res));
 });
@@ -274,7 +277,7 @@ app.put('/api/1/app/:app_id/object/:name/:id', middleware, function (req, res) {
         }));
 });
 
-app.delete('/api/1/app/:app_id/object/:name/:id', middleware, function (req, res) {
+app.delete('/api/1/app/:app_id/object/:name/:id?', middleware, function (req, res) {
     app.app_storage.deleteObjectInstance(req.params.app_id, req.params.name, req.params.id,
         CALLBACK_WITH_CALLBACK(res, function () {
             app.app_api.notifyResourceDeleted(req.params.app_id, {id:req.params.id, object_type:req.params.name});
