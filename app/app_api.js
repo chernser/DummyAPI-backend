@@ -36,6 +36,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
     // Socket.IO
 
     this.io = socket_io.listen(app);
+    this.all_events = this.io.of('/all_events');
 
     api.io.configure(function () {
         api.io.set('authorization', function (handshakeData, callback) {
@@ -50,14 +51,28 @@ var AppApi = module.exports.AppApi = function (app_storage) {
         });
     });
 
-    this.io.on('connection', function (socket) {
-
+    api.io.on('connection', function (socket) {
         api.addClientSocket(socket);
+        (function(socket) {
+            var emit = socket.emit;
+            socket.emit = function() {
+                var args = Array.prototype.slice.call(arguments);
+                emit.apply(socket, arguments);
+            };
+            var $emit = socket.$emit;
+            socket.$emit = function() {
+                var args = Array.prototype.slice.call(arguments);
+                api.all_events.emit("vent", args);
+                $emit.apply(socket, arguments);
+            };
+        })(socket);
 
         socket.on('disconnect', function () {
             api.delClientSocket(socket);
         });
     });
+
+
 
 
     // Express.JS
@@ -334,8 +349,12 @@ AppApi.prototype.getApplicationIdFromReq = function (headers, query, callback) {
         callback('not_found', null);
     } else {
         api.app_storage.getAppIdByAccessToken(access_token, function (err, app_id) {
+            console.log("application client: ", app_id)
             if (err != null) {
                 callback(err, null);
+                return;
+            } else if (app_id == null) {
+                callback('not_found', null);
                 return;
             }
 
@@ -569,6 +588,7 @@ AppApi.prototype.send_event = function (app_id, eventName, eventData, callback) 
         var proxy = getNotifyProxy(application);
         var event = proxy({name:eventName, type:'event'}, eventData);
 
+        api.all_events.emit('vent', event);
         var result = api.notifyApplicationClients(app_id, event);
         if (typeof callback == 'function') {
             callback(null, {notified: result});
