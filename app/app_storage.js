@@ -352,16 +352,16 @@ AppStorage.prototype = {
     renewAccessToken:function (app_id, callback) {
 
         var storage = this;
-        storage.getApplication(app_id, function (err, application) {
+        storage.getApplication(app_id, function (err, applications) {
             if (err != null) {
                 callback(err, null);
                 return;
-            } else if (application == null) {
+            } else if (_.isEmpty(applications)) {
                 callback('not_found', null);
                 return;
             }
 
-            application = application[0];
+            var application = applications[0];
 
             var old_access_token = application.access_token;
             var new_access_token = storage.generateAccessToken();
