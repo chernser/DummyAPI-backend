@@ -91,7 +91,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
   app.options('*', function (req, res) {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Credentials', true);
-    res.header('Access-Control-Allow-Methods', 'POST, GET, PUT, DELTE, OPTIONS');
+    res.header('Access-Control-Allow-Methods', 'POST, GET, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', ALLOWED_HEADERS);
 
     // TODO: move custom fields to configuration
@@ -548,8 +548,17 @@ AppApi.prototype.loadEventCallbacks = function (app_id, done) {
   var event_callbacks = api.event_callbacks[app_id] = {};
 
   api.app_storage.getEventCallbacks(app_id, null, function (err, callbacks) {
-    console.log("application ", app_id, " callbacks loaded: ", callbacks);
+    if (err !== null) {
+      callback(err, null);
+      return;
+    }
+
+    console.log("application ", app_id, " callbacks loaded: ", callbacks.length);
     for (var index in callbacks) {
+      if (callbacks[index].is_enabled === false) {
+        continue;
+      }
+
       var event_name = callbacks[index].event_name;
       var code = callbacks[index].code;
       try {
@@ -560,7 +569,7 @@ AppApi.prototype.loadEventCallbacks = function (app_id, done) {
         console.log("Failed to load callback for event: ", event_name, " code: ", code, ": ", E);
       }
     }
-    console.log(">>> ", app_id, api.event_callbacks);
+
     if (_.isFunction(done)) {
       done();
     }
@@ -571,6 +580,11 @@ AppApi.prototype.loadEventCallbacks = function (app_id, done) {
 AppApi.prototype.updateEventCallback = function (app_id, event_callback) {
   var event_name = event_callback.event_name;
   var code = event_callback.code;
+
+  if (event_callback.is_enabled === false) {
+    this.removeEventCallback(app_id, event_name);
+    return;
+  }
 
   var event_callbacks = null;
   if (_.isUndefined(this.event_callbacks[app_id])) {
@@ -596,27 +610,28 @@ AppApi.prototype.removeEventCallback = function (app_id, event_name) {
   delete event_callbacks[event_name];
 };
 
-AppApi.prototype.callEventCallback = function(app_id, event_name, context) {
-  console.log("Callback for event: ", event_name, " triggered");
+AppApi.prototype.callEventCallback = function (app_id, event_name, context) {
+
   var api = this;
 
-  function done() {
+  var done = function () {
     var event_callback_fun = api.event_callbacks[app_id][event_name];
-    console.log("callback function: ", event_callback_fun);
     if (_.isFunction(event_callback_fun)) {
+      console.log("Callback for event: ", event_name, " triggered");
       var result = event_callback_fun(context);
-      if (!_.isEmpty(result.event_name)) {
-        console.log("callback sent event: ", result);
-        api.send_event(app_id, result.event_name, result.event_data);
+
+      // TODO: make response API more complex
+      if (!_.isUndefined(result) && result !== null) {
+        if (!_.isEmpty(result.event_name)) {
+          api.send_event(app_id, result.event_name, result.event_data);
+        }
       }
     }
   };
 
 
-  console.log(">>>> ", this.event_callbacks);
   if (_.isUndefined(this.event_callbacks[app_id])) {
-    console.log("No callbacks loaded yet");
-     this.loadEventCallbacks(app_id, done);
+    this.loadEventCallbacks(app_id, done);
   } else {
     done();
   }

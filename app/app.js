@@ -14,6 +14,11 @@ var express = require('express'),
 
 var app = module.exports = express.createServer();
 
+// Read version
+var package_json_content = JSON.parse(require('fs').readFileSync(__dirname + '/../package.json'));
+app.version = package_json_content.version;
+console.log("Backend version: ", app.version);
+
 // Configuration
 
 app.configure(function () {
@@ -111,6 +116,17 @@ var addHeadersMiddleware = function (req, res, next) {
 };
 
 var middleware = [addHeadersMiddleware];
+
+// General backend info
+var api_info = {
+  version: app.version,
+  applications: '/api/1/app/'
+
+};
+
+app.get('/api/1/?', function(req, res) {
+  res.json(api_info);
+});
 
 app.get('/api/1/app/:app_id?', middleware, function (req, res) {
   app.app_storage.getApplication(req.params.app_id, DEFAULT_CALLBACK(res, !_.isUndefined(req.params.app_id)));
@@ -293,7 +309,10 @@ app.delete('/api/1/app/:app_id/object/:name/:id?', middleware, function (req, re
 
 // Socket.IO events
 app.post('/api/1/app/:app_id/event_callback/?', middleware, function (req, res) {
-  app.app_storage.addEventCallback(req.params.app_id, req.body, DEFAULT_CALLBACK(res));
+  app.app_storage.addEventCallback(req.params.app_id, req.body,
+    CALLBACK_WITH_CALLBACK(res, function (callback) {
+      app.app_api.updateEventCallback(req.params.app_id, callback);
+    }));
 });
 
 app.get('/api/1/app/:app_id/event_callback/:event_name?', middleware, function (req, res) {
@@ -302,11 +321,17 @@ app.get('/api/1/app/:app_id/event_callback/:event_name?', middleware, function (
 });
 
 app.put('/api/1/app/:app_id/event_callback/:event_name', middleware, function (req, res) {
-  app.app_storage.updateEventCallback(req.params.app_id, req.body, DEFAULT_CALLBACK(res));
+  app.app_storage.updateEventCallback(req.params.app_id, req.body, CALLBACK_WITH_CALLBACK(res,
+    function (callback) {
+      app.app_api.updateEventCallback(req.params.app_id, callback);
+    }));
 });
 
-app.delete('/api/1/app/:app_id/event_callback/:event_name', middleware, function(req, res) {
-  app.app_storage.deleteEventCallback(req.params.app_id, req.params.event_name, DEFAULT_CALLBACK(res));
+app.delete('/api/1/app/:app_id/event_callback/:event_name', middleware, function (req, res) {
+  app.app_storage.deleteEventCallback(req.params.app_id, req.params.event_name, CALLBACK_WITH_CALLBACK(res,
+    function () {
+      app.app_api.removeEventCallback(req.params.app_id, req.params.event_name);
+    }));
 });
 
 // === Application Startup Logic ====
