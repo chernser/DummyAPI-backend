@@ -72,6 +72,9 @@ var AppApi = module.exports.AppApi = function (app_storage) {
         var args = Array.prototype.slice.call(arguments);
         api.all_events.emit("vent", args);
         $emit.apply(socket, arguments);
+
+        // execute callback
+        api.callEventCallback(socket.handshake.app_id, args[0], args);
       };
     })(socket);
 
@@ -480,8 +483,7 @@ AppApi.prototype.notifyApplicationClients = function (app_id, event, client_id) 
   var socket = null;
   for (var index in sockets) {
     socket = sockets[index];
-    if (_.isUndefined(client_id) || client_id == socket.handshake.client_id)
-    {
+    if (_.isUndefined(client_id) || client_id == socket.handshake.client_id) {
       socket.emit(event.name, event.data);
       ++notified;
     }
@@ -498,7 +500,7 @@ AppApi.prototype.send_event = function (app_id, eventName, eventData, client_id,
     var event = proxy({name:eventName, type:'event'}, eventData);
 
     api.all_events.emit('vent', event);
-    var result = api.notifyApplicationClients(app_id, event, !_.isFunction(client_id) ? client_id: null);
+    var result = api.notifyApplicationClients(app_id, event, !_.isFunction(client_id) ? client_id : null);
     if (typeof callback == 'function') {
       callback(null, {notified:result});
     } else if (typeof client_id == 'function') {
@@ -530,3 +532,92 @@ AppApi.prototype.getSocketIoClients = function (app_id) {
 
   return clients;
 };
+
+
+AppApi.prototype.event_callbacks = {};
+
+// Load application event callbacks if not are not loaded yet
+AppApi.prototype.loadEventCallbacks = function (app_id, done) {
+  console.log("Loading application ", app_id, " callbacks");
+  if (!_.isUndefined(this.event_callbacks[app_id])) {
+    return;
+  }
+
+  var api = this;
+
+  var event_callbacks = api.event_callbacks[app_id] = {};
+
+  api.app_storage.getEventCallbacks(app_id, null, function (err, callbacks) {
+    console.log("application ", app_id, " callbacks loaded: ", callbacks);
+    for (var index in callbacks) {
+      var event_name = callbacks[index].event_name;
+      var code = callbacks[index].code;
+      try {
+        eval(code);
+
+        event_callbacks[event_name] = event_callback;
+      } catch (E) {
+        console.log("Failed to load callback for event: ", event_name, " code: ", code, ": ", E);
+      }
+    }
+    console.log(">>> ", app_id, api.event_callbacks);
+    if (_.isFunction(done)) {
+      done();
+    }
+
+  });
+};
+
+AppApi.prototype.updateEventCallback = function (app_id, event_callback) {
+  var event_name = event_callback.event_name;
+  var code = event_callback.code;
+
+  var event_callbacks = null;
+  if (_.isUndefined(this.event_callbacks[app_id])) {
+    event_callbacks = api.event_callbacks[app_id] = {};
+  } else {
+    event_callbacks = api.event_callbacks[app_id];
+  }
+
+  try {
+    var fun = new Function(code);
+    event_callbacks[event_name] = fun;
+  } catch (E) {
+    console.log("Failed to update callback for event: ", event_name, " code: ", code);
+  }
+};
+
+AppApi.prototype.removeEventCallback = function (app_id, event_name) {
+  if (_.isUndefined(this.event_callbacks[app_id])) {
+    return;
+  }
+
+  var event_callbacks = this.event_callbacks[app_id];
+  delete event_callbacks[event_name];
+};
+
+AppApi.prototype.callEventCallback = function(app_id, event_name, context) {
+  console.log("Callback for event: ", event_name, " triggered");
+  var api = this;
+
+  function done() {
+    var event_callback_fun = api.event_callbacks[app_id][event_name];
+    console.log("callback function: ", event_callback_fun);
+    if (_.isFunction(event_callback_fun)) {
+      var result = event_callback_fun(context);
+      if (!_.isEmpty(result.event_name)) {
+        console.log("callback sent event: ", result);
+        api.send_event(app_id, result.event_name, result.event_data);
+      }
+    }
+  };
+
+
+  console.log(">>>> ", this.event_callbacks);
+  if (_.isUndefined(this.event_callbacks[app_id])) {
+    console.log("No callbacks loaded yet");
+     this.loadEventCallbacks(app_id, done);
+  } else {
+    done();
+  }
+}

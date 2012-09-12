@@ -151,7 +151,7 @@ app.post('/api/1/app/:app_id/send_event', middleware, function (req, res) {
 
 app.get('/api/1/app/:app_id/socket_clients', middleware, function (req, res) {
   var clients = app.app_api.getSocketIoClients(req.params.app_id);
-  res.json({clients: clients});
+  res.json({clients:clients});
 });
 
 app.post('/api/1/app/:app_id/clone', middleware, function (req, res) {
@@ -290,6 +290,24 @@ app.delete('/api/1/app/:app_id/object/:name/:id?', middleware, function (req, re
     }));
 });
 
+
+// Socket.IO events
+app.post('/api/1/app/:app_id/event_callback/?', middleware, function (req, res) {
+  app.app_storage.addEventCallback(req.params.app_id, req.body, DEFAULT_CALLBACK(res));
+});
+
+app.get('/api/1/app/:app_id/event_callback/:event_name?', middleware, function (req, res) {
+  app.app_storage.getEventCallbacks(req.params.app_id, req.params.event_name,
+    DEFAULT_CALLBACK(res, !_.isUndefined(req.params.event_name)));
+});
+
+app.put('/api/1/app/:app_id/event_callback/:event_name', middleware, function (req, res) {
+  app.app_storage.updateEventCallback(req.params.app_id, req.body, DEFAULT_CALLBACK(res));
+});
+
+app.delete('/api/1/app/:app_id/event_callback/:event_name', middleware, function(req, res) {
+  app.app_storage.deleteEventCallback(req.params.app_id, req.params.event_name, DEFAULT_CALLBACK(res));
+});
 
 // === Application Startup Logic ====
 app.state = new (require('events')).EventEmitter();

@@ -69,6 +69,7 @@
 
             $("#send_server_ping").click(function() {
                 app_client_socket.emit("ping server", "hello");
+                app_client_socket.emit("call", "j");
             });
         });
 
