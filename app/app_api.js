@@ -191,7 +191,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
   // Sockte.IO notifications
   app.post('/api/1/socket/event', middlewares, function (req, res) {
     var event = req.body;
-    var client_id = req.query.client_id;
+    var client_id = _.isUndefined(req.query.client_id) ? req.body.client_id : req.query.client_id;
     var notified = api.notifyApplicationClients(req.app_id, event, client_id);
     res.json({notified_clients:notified});
   });
@@ -490,7 +490,7 @@ AppApi.prototype.notifyApplicationClients = function (app_id, event, client_id) 
   return notified;
 };
 
-AppApi.prototype.send_event = function (app_id, eventName, eventData, callback) {
+AppApi.prototype.send_event = function (app_id, eventName, eventData, client_id, callback) {
   var api = this;
 
   api.app_storage.getApplication(app_id, function (err, application) {
@@ -498,9 +498,11 @@ AppApi.prototype.send_event = function (app_id, eventName, eventData, callback) 
     var event = proxy({name:eventName, type:'event'}, eventData);
 
     api.all_events.emit('vent', event);
-    var result = api.notifyApplicationClients(app_id, event);
+    var result = api.notifyApplicationClients(app_id, event, !_.isFunction(client_id) ? client_id: null);
     if (typeof callback == 'function') {
       callback(null, {notified:result});
+    } else if (typeof client_id == 'function') {
+      client_id(null, {notified:result});
     }
   });
 };
