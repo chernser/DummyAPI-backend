@@ -5,13 +5,16 @@
  *
  *  Author: Sergey Chernov (chernser@outlook.com)
  */
+
+var _ = require('underscore');
+
+
 var AppApi = module.exports.AppApi = function (app_storage) {
 
   var express = require('express')
     , socket_io = require('socket.io')
     , config = require('../config')
     , api_auth = require('./app_api_auth')
-    , _ = require('underscore')
     , api = this
     , app = null;
 
@@ -41,6 +44,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
   api.io.configure(function () {
     api.io.set('authorization', function (handshakeData, callback) {
+      handshakeData.client_id = handshakeData.query.client_id;
       api.getApplicationIdFromReq(handshakeData.headers, handshakeData.query, function (err, app_id) {
         if (err != null) {
           callback(null, false);
@@ -53,6 +57,9 @@ var AppApi = module.exports.AppApi = function (app_storage) {
   });
 
   api.io.on('connection', function (socket) {
+    if (_.isUndefined(socket.handshake.client_id)) {
+      socket.handshake.client_id = socket.id;
+    }
     api.addClientSocket(socket);
     (function (socket) {
       var emit = socket.emit;
@@ -133,8 +140,6 @@ var AppApi = module.exports.AppApi = function (app_storage) {
           res.send(500, err);
           return;
         }
-
-        console.log('>> user name: ', user);
         req.user_groups = user.hasOwnProperty('groups') ? user.groups : [];
 
         next();
@@ -186,8 +191,15 @@ var AppApi = module.exports.AppApi = function (app_storage) {
   // Sockte.IO notifications
   app.post('/api/1/socket/event', middlewares, function (req, res) {
     var event = req.body;
-    var notified = api.notifyApplicationClients(req.app_id, event);
+    var client_id = req.query.client_id;
+    var notified = api.notifyApplicationClients(req.app_id, event, client_id);
     res.json({notified_clients:notified});
+  });
+
+  app.get('/api/1/socket/clients', middlewares, function (req, res) {
+    var clients = api.getSocketIoClients(req.app_id);
+
+    res.json({clients:clients});
   });
 
 
@@ -457,7 +469,7 @@ AppApi.prototype.delClientSocket = function (socket) {
   }
 };
 
-AppApi.prototype.notifyApplicationClients = function (app_id, event) {
+AppApi.prototype.notifyApplicationClients = function (app_id, event, client_id) {
 
   var sockets = this.app_client_sockets[app_id];
   if (typeof sockets == 'undefined') {
@@ -465,9 +477,14 @@ AppApi.prototype.notifyApplicationClients = function (app_id, event) {
   }
 
   var notified = 0;
+  var socket = null;
   for (var index in sockets) {
-    sockets[index].emit(event.name, event.data);
-    ++notified;
+    socket = sockets[index];
+    if (_.isUndefined(client_id) || client_id == socket.handshake.client_id)
+    {
+      socket.emit(event.name, event.data);
+      ++notified;
+    }
   }
 
   return notified;
@@ -498,4 +515,16 @@ AppApi.prototype.notifyResourceCreated = function (app_id, resource) {
 
 AppApi.prototype.notifyResourceDeleted = function (app_id, resource) {
   this.send_event(app_id, 'resource_deleted', resource);
+};
+
+AppApi.prototype.getSocketIoClients = function (app_id) {
+  var sockets = this.app_client_sockets[app_id];
+
+  var clients = [];
+  for (var index in sockets) {
+
+    clients.push(sockets[index].handshake.client_id);
+  }
+
+  return clients;
 };

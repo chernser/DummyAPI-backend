@@ -60,7 +60,7 @@
 
     if (access_token != null) {
         var socket_url = "//" + window.location.hostname + ':' + window.location.port;
-        var app_client_socket = io.connect(socket_url + "/?access_token=" + access_token);
+        var app_client_socket = io.connect(socket_url + "/?client_id=test&access_token=" + access_token);
         var app_all_events_socket = io.connect(socket_url + '/all_events?access_token=' + access_token);
 
         /* All events socket subscription */
