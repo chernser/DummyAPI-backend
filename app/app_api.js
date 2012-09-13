@@ -580,6 +580,7 @@ AppApi.prototype.loadEventCallbacks = function (app_id, done) {
 AppApi.prototype.updateEventCallback = function (app_id, event_callback) {
   var event_name = event_callback.event_name;
   var code = event_callback.code;
+  var api = this;
 
   if (event_callback.is_enabled === false) {
     this.removeEventCallback(app_id, event_name);

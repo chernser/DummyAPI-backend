@@ -124,7 +124,7 @@ var api_info = {
 
 };
 
-app.get('/api/1/?', function(req, res) {
+app.get('/api/1/?', middleware, function(req, res) {
   res.json(api_info);
 });
 
@@ -321,6 +321,9 @@ app.get('/api/1/app/:app_id/event_callback/:event_name?', middleware, function (
 });
 
 app.put('/api/1/app/:app_id/event_callback/:event_name', middleware, function (req, res) {
+  var event_callback = req.body;
+  event_callback.event_name = req.params.event_name;
+
   app.app_storage.updateEventCallback(req.params.app_id, req.body, CALLBACK_WITH_CALLBACK(res,
     function (callback) {
       app.app_api.updateEventCallback(req.params.app_id, callback);

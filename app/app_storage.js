@@ -899,9 +899,9 @@ AppStorage.prototype = {
 
   updateEventCallback:function (app_id, event_callback, callback) {
     var storage = this;
-    var query = {app_id:parseInt(app_id), event_name:event_name };
+    var query = {app_id:parseInt(app_id), event_name: event_callback.event_name };
 
-    if (_.isEmpty(event_name)) {
+    if (_.isEmpty(event_callback.event_name)) {
       callback('not_found', null);
       return;
     }
