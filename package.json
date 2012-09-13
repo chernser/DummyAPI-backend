@@ -1,6 +1,6 @@
 {
   "name": "DummyAPI-backend",
-  "version": "p0.1.4",
+  "version": "0.1.4b",
   "private": true,
   "dependencies": {
     "express": "2.5.11",
