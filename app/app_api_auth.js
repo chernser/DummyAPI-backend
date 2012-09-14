@@ -98,8 +98,15 @@ module.exports = {
   getLinkedResource:function (api, req, res, user, callback) {
     var app_storage = api.app_storage;
     var auth = this;
-    var resource = _.isEmpty(user.resource) ? req.query.resource : user.resource;
-    var resource_id = _.isEmpty(user.resource_id) ? req.query.resource_id : user.resource_id;
+
+    var resource = user.resource;
+    var resource_id = user.resource_id;
+
+    // Override application settings if we set them in query
+    if (req.query != null && (!_.isEmpty(req.query.resource) && !_.isEmpty(req.query.resource_id))) {
+      resource = req.query.resource;
+      resource_id = req.query.resource_id;
+    }
 
     // Check resource name and id
     if (_.isEmpty(resource) || _.isEmpty(resource_id)) {
