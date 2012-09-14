@@ -44,7 +44,12 @@ module.exports = {
     }
 
     auth.authorizeAndGet(api, req.app_id, res, user_name, password, function (err, user) {
-      if (err !== null) {
+      if (err == 'unauthorized') {
+        res.send("Invalid credentials", 401);
+        return;
+      } else if (err !== null) {
+        console.log(err);
+        res.send(500);
         return;
       }
 
@@ -99,8 +104,8 @@ module.exports = {
     var app_storage = api.app_storage;
     var auth = this;
 
-    var resource = user.resource;
-    var resource_id = user.resource_id;
+    var resource = user != null ? user.resource : null;
+    var resource_id = user != null? user.resource_id : null;
 
     // Override application settings if we set them in query
     if (req.query != null && (!_.isEmpty(req.query.resource) && !_.isEmpty(req.query.resource_id))) {
