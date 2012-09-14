@@ -44,7 +44,7 @@ module.exports = {
     }
 
     auth.authorizeAndGet(api, req.app_id, res, user_name, password, function (err, user) {
-      if (err == 'unauthorized') {
+      if (err == 'unauthorized' || user == null) {
         res.send("Invalid credentials", 401);
         return;
       } else if (err !== null) {
@@ -57,10 +57,7 @@ module.exports = {
 
       // Add linked resource
       auth.getLinkedResource(api, req, res, user, function (err, linked_resource) {
-        if (err == 'unauthorized') {
-          res.send(401);
-          return;
-        } else if (err != null) {
+        if (err != null) {
           res.send(500);
           return;
         }
