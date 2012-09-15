@@ -829,7 +829,13 @@ AppStorage.prototype = {
         if (isNaN(tmpId)) {
           query[id_field] = id;
         } else {
-          query[id_field] = tmpId;
+          // Handle both numbers and strings
+          var if_number_clause = {};
+          if_number_clause[id_field] = tmpId;
+          var if_string_clause = {};
+          if_string_clause[id_field] = id;
+
+          query.$or = [if_number_clause, if_string_clause];
         }
       }
     }

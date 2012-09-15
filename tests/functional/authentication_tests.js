@@ -1,86 +1,87 @@
-var assert = require('assert'),
-  _ = require('underscore'),
-  client = require('./api_client');
-
-var appClient = client.appClient;
-var apiClient = client.apiClient;
-
-var APP_NAME = "TestApplication2";
+var should = require('should');
+var _ = require('underscore');
+var async = require('async');
+var app_clients = require('../../app/app_clients');
 
 
-suite("authentication logic test", function () {
+
+
+var bclient = new app_clients.BackendClient();
+var apiClient = new app_clients.AppApiClient();
+
+describe('Authentication API', function () {
+
   var application = null;
-  var object_type = null;
-  var object_type_name = "User";
-  var credentials = {user_name:"agent007", password:"world_is_not_enough"};
   var user = null;
+  var resource = null;
+  var object_type_name_01 = "Resource_01";
 
   beforeEach(function (done) {
 
-    var createUser = function (done) {
-      apiClient.post('/app/' + application.id + '/user/', credentials, function (response) {
-        user = response.body;
-        done();
-      });
-    };
+    async.series([
+      function (done) {
+        bclient.createApp(function (response) {
+          application = response.content.data;
+          done();
+        });
+      },
 
-    var createObjectType = function (done) {
-      apiClient.post('/app/' + application.id + '/object_type/', {name:object_type_name, id_field:'id'}, function (response) {
-        object_type = response.body;
-        createUser(done);
-      });
-    };
+      function (done) {
+        bclient.createObjectType(application.id, {name:object_type_name_01, id_field:"id"}, function (response) {
+          done();
+        });
+      },
 
-    apiClient.post('/app/', {name:APP_NAME}, function (response) {
-      assert.ok(response.statusCode == 200);
-      application = response.body;
-      appClient.access_token = application.access_token;
-      createObjectType(done);
+      function (done) {
+        bclient.createResource(application.id, object_type_name_01, { id:"1", test_field:"test_value"}, function (response) {
+          resource = response.content.data;
+          done();
+        });
+      },
+
+      function (done) {
+        bclient.createUser(application.id, {user_name:"test", password:"test", resource:object_type_name_01,
+          resource_id: resource.id},
+        function (response) {
+          user = response.content.data;
+          done();
+        });
+      }
+    ],
+    function () {
+      done();
     });
+
+
   });
 
   afterEach(function (done) {
-    apiClient.del('/app/' + application.id, null, function () {
+    bclient.deleteApp(application.id, function (response) {
       done();
     });
   });
 
-  function getInstanceUrl(id) {
-    return '/' + object_type_name + '/' + id;
-  }
+  it("Should return linked resource merged with user", function (done) {
 
-  test('ugly get authentication', function (done) {
+    apiClient.do_ugly_get_auth(application.access_token, user, function (response) {
+      var data = response.content.data;
 
-    var instance = { id:user.id, first_name:"Homer", last_name:"Simpson" };
-    apiClient.post('/app/' + application.id + '/object/' + object_type_name + '/', instance, function (response) {
+      data.should.have.property('test_field');
 
-      user.resource = object_type_name;
-      user.resource_id = new String(user.id);
+      done();
+    });
+  });
 
-      apiClient.put('/app/' + application.id + '/user/' + user.id, user, function (response) {
-        var auth_query = "/ugly_get_auth?username=" + user.user_name + "&password=" + user.password;
-        appClient.get(auth_query, null, function (response) {
+  it("should remove link between user and resource and return only user", function(done) {
+    user.resource = '';
+    bclient.updateUser(application.id, user, function(response) {
+      apiClient.do_ugly_get_auth(application.access_token, user, function (response) {
+        var data = response.content.data;
 
-          var session = response.body;
+        data.should.have.not.property('test_field');
 
-          assert.ok(session.first_name == instance.first_name, "First name missing");
-          assert.ok(session.last_name == instance.last_name, "Last name missing");
-
-          done();
-        });
+        done();
       });
-
-    });
-  });
-
-  test('simple token auth', function (done) {
-    var credentials = {user_name:user.user_name, password:user.password};
-
-    appClient.post('/simple_token_auth', credentials, function (response) {
-
-      var session = response.body;
-      assert.ok(session.access_token, "Access Token missing");
-      done();
     });
   });
 

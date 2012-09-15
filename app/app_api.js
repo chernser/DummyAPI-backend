@@ -123,6 +123,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
       } else if (err != null) {
         res.send(500, err);
       } else {
+
         req.app_id = app_id;
         next();
       }

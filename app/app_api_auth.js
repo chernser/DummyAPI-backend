@@ -48,7 +48,7 @@ module.exports = {
         res.send("Invalid credentials", 401);
         return;
       } else if (err !== null) {
-        console.log(err);
+        console.log("authorizeAndGet():", err);
         res.send(500);
         return;
       }
@@ -58,6 +58,7 @@ module.exports = {
       // Add linked resource
       auth.getLinkedResource(api, req, res, user, function (err, linked_resource) {
         if (err != null) {
+          console.log("getLinkedResource():",err);
           res.send(500);
           return;
         }
@@ -110,6 +111,7 @@ module.exports = {
       resource_id = req.query.resource_id;
     }
 
+
     // Check resource name and id
     if (_.isEmpty(resource) || _.isEmpty(resource_id)) {
       callback(null, auth.EMPTY_RESOURCE);
@@ -122,6 +124,7 @@ module.exports = {
       }
 
       var id = {id:resource_id, id_field:object_type.id_field};
+
       app_storage.getObjectInstances(req.app_id, resource, id, function (err, resources) {
         if (err != null) {
           callback(err, null);
