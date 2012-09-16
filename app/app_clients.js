@@ -68,12 +68,32 @@ BackendClient.prototype.createApp = function (name, callback) {
   this.doReq('post', this.backend_url + '/app', {name:name}, callback);
 };
 
+BackendClient.prototype.updateApp = function (application, callback) {
+  this.doReq('put', this.backend_url + '/app/' + application.id, application, callback);
+};
+
+BackendClient.prototype.renewAppAccessToken = function (app_id, callback) {
+  this.doReq('post', this.backend_url + '/app/' + app_id + '/new_access_token', null, callback);
+};
+
+BackendClient.prototype.cloneApplication = function (app_id, opts, callback) {
+  this.doReq('post', this.backend_url + '/app/' + app_id + '/clone', opts, callback);
+};
+
+BackendClient.prototype.getApplication = function (app_id, callback) {
+  this.doReq('get', this.backend_url + '/app/' + app_id, null, callback);
+};
+
 BackendClient.prototype.deleteApp = function (app_id, callback) {
   this.doReq('delete', this.backend_url + '/app/' + app_id, null, callback);
 };
 
 BackendClient.prototype.createUser = function (app_id, user, callback) {
   this.doReq('post', this.backend_url + '/app/' + app_id + '/user/', user, callback);
+};
+
+BackendClient.prototype.getUser = function (app_id, user_id, callback) {
+  this.doReq('get', this.backend_url + '/app/' + app_id + '/user/' + user_id, null, callback);
 };
 
 BackendClient.prototype.updateUser = function (app_id, user, callback) {
@@ -88,6 +108,14 @@ BackendClient.prototype.createObjectType = function (app_id, object_type, callba
   this.doReq('post', this.backend_url + '/app/' + app_id + '/object_type', object_type, callback);
 };
 
+BackendClient.prototype.getObjectType = function (app_id, object_type_name, callback) {
+  this.doReq('get', this.backend_url + '/app/' + app_id + '/object_type/' + object_type_name, null, callback);
+};
+
+BackendClient.prototype.updateObjectType = function (app_id, object_type, callback) {
+  this.doReq('put', this.backend_url + '/app/' + app_id + '/object_type/' + object_type.name, object_type, callback);
+};
+
 BackendClient.prototype.deleteObjectType = function (app_id, object_type, callback) {
   this.doReq('delete', this.backend_url + '/app/' + app_id + '/object_type/' + object_type.name, null, callback);
 };
@@ -95,6 +123,10 @@ BackendClient.prototype.deleteObjectType = function (app_id, object_type, callba
 BackendClient.prototype.createResource = function (app_id, object_type, instance, callback) {
   this.doReq('post', this.backend_url + '/app/' + app_id + '/object/' + object_type + '/', instance, callback);
 };
+
+BackendClient.prototype.getResource = function(app_id, object_type, id, callback) {
+  this.doReq('get', this.backend_url + '/app/' + app_id + '/object/' + object_type + '/' + id, null, callback);
+}
 
 BackendClient.prototype.updateResource = function (app_id, object_type, instance, callback) {
   this.doReq('put', this.backend_url + '/app/' + app_id + '/object/' + object_type + '/' + instance._id, instance, callback);
@@ -111,7 +143,7 @@ var AppApiClient = module.exports.AppApiClient = function () {
   return _.extend(new CommonClient(), this);
 };
 
-AppApiClient.prototype.getAPIInfo = function(api_key, callback) {
+AppApiClient.prototype.getAPIInfo = function (api_key, callback) {
   this.doReq('get', this.api_url + '/?access_token=' + api_key, null, callback);
 };
 

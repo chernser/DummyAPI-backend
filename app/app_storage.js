@@ -388,32 +388,19 @@ AppStorage.prototype = {
     return this.crypto.randomBytes(24).toString('hex');
   },
 
-  renewAccessToken:function (app_id, callback) {
+  renewAppAccessToken:function (app_id, callback) {
 
     var storage = this;
-    storage.getApplication(app_id, function (err, applications) {
+    var query = {id: parseInt(app_id)};
+    var new_access_token = storage.generateAccessToken();
+    var modify = { $set: { access_token: new_access_token}};
+    storage.put(storage.APPLICATIONS_COL, query, modify, function(err, result) {
       if (err != null) {
         callback(err, null);
         return;
-      } else if (_.isEmpty(applications)) {
-        callback('not_found', null);
-        return;
       }
 
-      var application = applications[0];
-
-      var old_access_token = application.access_token;
-      var new_access_token = storage.generateAccessToken();
-      application.access_token = new_access_token;
-
-      storage.saveApplication(application, function (err, saved) {
-        if (err == null) {
-          storage.updateAppAccessTokens(app_id, old_access_token, new_access_token);
-        }
-        if (typeof callback == 'function') {
-          callback(err, {access_token:application.access_token});
-        }
-      });
+      callback(null, {access_token: new_access_token});
     });
   },
 

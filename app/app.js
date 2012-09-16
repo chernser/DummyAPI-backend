@@ -157,7 +157,7 @@ app.delete('/api/1/app/:app_id', middleware, function (req, res) {
 // Application 'actions'
 
 app.post('/api/1/app/:app_id/new_access_token', middleware, function (req, res) {
-  app.app_storage.renewAccessToken(req.params.app_id, DEFAULT_CALLBACK(res));
+  app.app_storage.renewAppAccessToken(req.params.app_id, DEFAULT_CALLBACK(res));
 });
 
 app.post('/api/1/app/:app_id/send_event', middleware, function (req, res) {
@@ -242,7 +242,8 @@ app.post('/api/1/app/:app_id/object_type/?', middleware, function (req, res) {
   var object_type = {
     name:req.body.name,
     route_pattern:req.body.route_pattern,
-    id_field:req.body.id_field
+    id_field:req.body.id_field,
+    proxy_fun_code:req.body.proxy_fun_code
   };
   console.log("params: ", req.params);
   app.app_storage.addObjectType(req.params.app_id, object_type, DEFAULT_CALLBACK(res));
