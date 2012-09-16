@@ -171,5 +171,5 @@ AppApiClient.prototype.updateResource = function(api_key, object_type_name, id, 
 };
 
 AppApiClient.prototype.deleteResource = function(api_key, object_type_name, id, callback) {
-  this.doReq('delete', this.api_url + '/' + object_type_name + '/' + id + '?access_token=' + api_key, resource, callback);
+  this.doReq('delete', this.api_url + '/' + object_type_name + '/' + id + '?access_token=' + api_key, null, callback);
 };

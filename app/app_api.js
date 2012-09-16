@@ -100,8 +100,6 @@ var AppApi = module.exports.AppApi = function (app_storage) {
   });
 
 
-  var API_PATTERN = /^\/api\/1\/+((\w+\/?)+)/;
-
   var getDefaultCallback = function (res) {
     return function (err, object) {
       if (err !== null) {
@@ -213,6 +211,8 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
 
   // Resource manipulations (keep them last)
+  var API_PATTERN = /^\/api\/1\/+((\w+\/?)+)/;
+
   app.get(API_PATTERN, middlewares, function (req, res) {
     api.handleGet(req.app_id, req.params[0], getDefaultCallback(res));
   });
@@ -421,7 +421,7 @@ AppApi.prototype.handleDelete = function (app_id, url, callback) {
     id = getObjectId(id, objectType);
     api.app_storage.deleteObjectInstance(app_id, objectType.name, id, function () {
       api.notifyResourceDeleted({id:id, object_type:objectType.name});
-      callback(null, null);
+      callback(null, {removed: true});
     });
   });
 };
