@@ -163,8 +163,13 @@ var AppApi = module.exports.AppApi = function (app_storage) {
   var middlewares = [getApplicationIdMiddleware, getUserMiddleware, addHeadersMiddleware];
 
   app.get('/api/1/', middlewares, function (req, res) {
-    app_storage.getApplication(req.app_id, function (err, application) {
+    app_storage.getApplication(req.app_id, function (err, applications) {
+      if (err !== null) {
+        res.send(500);
+        return;
+      }
 
+      var application = applications[0];
       var api_def = {
         app_id:application.id,
         app_name:application.name,

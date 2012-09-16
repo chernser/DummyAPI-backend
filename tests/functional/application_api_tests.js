@@ -1,114 +1,50 @@
-var assert = require('assert'),
-    _ = require('underscore'),
-    client = require('./api_client');
+var should = require('should');
+var _ = require('underscore');
+var async = require('async');
+var app_clients = require('../../app/app_clients');
 
-var appClient = client.appClient;
-var apiClient = client.apiClient;
 
-var APP_NAME = "TestApplication";
+var APPLICATION_NAME = "___Test__Application___";
+var bclient = new app_clients.BackendClient();
+var apiClient = new app_clients.AppApiClient();
 
-/* Tests */
-suite("object type instances manipulations via application api", function () {
-    var application = null;
-    var object_type = null;
-    var object_type_name = "Resource_01";
+describe('Application API', function () {
 
-    beforeEach(function (done) {
-        var createObjectType = function (done) {
-            apiClient.post('/app/' + application.id + '/object_type/', {name:object_type_name}, function (response) {
-                object_type = response.body;
-                done();
-            });
-        };
+  var application = null;
 
-        apiClient.post('/app/', {name:APP_NAME}, function (response) {
-            application = response.body;
-            appClient.access_token = application.access_token;
-            createObjectType(done);
+  before(function (done) {
+
+    async.series([
+      function (done) {
+        bclient.createApp(APPLICATION_NAME, function (response) {
+          application = response.content.data;
+          done();
         });
+      }
+    ],
+    function () {
+      done();
     });
 
-    afterEach(function (done) {
-        apiClient.del('/app/' + application.id, null, function () {
-            done();
-        });
+
+  });
+
+  after(function (done) {
+    bclient.deleteApp(application.id, function (response) {
+      done();
+    });
+  });
+
+  it('should return application API description', function (done) {
+    apiClient.getAPIInfo(application.access_token, function (response) {
+      var info = response.content.data;
+
+      info.should.have.property('app_id');
+      info.should.have.property('app_name');
+      info.should.have.property('resources');
+      done();
     });
 
-    function getInstanceUrl(id) {
-        return '/' + object_type_name + '/' + id;
-    }
-
-    test('create instance', function (done) {
-        var instance = {value:123};
-        appClient.post(getInstanceUrl(''), instance, function (response) {
-            var created_instance = response.body;
-            assert.ok(created_instance._id);
-            appClient.get(getInstanceUrl(created_instance._id), null,
-                function (response) {
-                    assert.ok(response.body.value == 123);
-                    done();
-                });
-
-        });
-    });
-
-    test('remove instance', function (done) {
-        var instance = {value:123};
-        appClient.post(getInstanceUrl(''), instance, function (response) {
-            var created_instance = response.body;
-
-            assert.ok(created_instance._id);
-            appClient.del(getInstanceUrl(created_instance._id), null,
-                function () {
-
-                    done();
-                });
-
-        });
-    });
-
-    test('change instance', function (done) {
-        var instance = {value:123};
-        appClient.post(getInstanceUrl(''), instance, function (response) {
-            var created_instance = response.body;
-
-            assert.ok(created_instance._id);
-            assert.ok(created_instance.value == 123);
-
-            instance.value = 444;
-            appClient.put(getInstanceUrl(created_instance._id), instance,
-                function (response) {
-                    assert.ok(response.body.value == instance.value);
-                    done();
-                });
-
-        });
-    });
-
-    test('set custom proxy function', function (done) {
-        var NEW_PROXY_FUN = 'function proxy(resource) { ' +
-            '   resource.mocked = true;' +
-            '   return resource;' +
-            '}';
-
-        object_type.proxy_fun_code = NEW_PROXY_FUN;
-        apiClient.put('/app/' + application.id + '/object_type/' + object_type_name, object_type, function (response) {
-            var instance = {value:123};
-            appClient.post(getInstanceUrl(''), instance, function (response) {
-                var created_instance = response.body;
-                assert.ok(created_instance._id);
-                appClient.get(getInstanceUrl(created_instance._id), null,
-                    function (response) {
-                        assert.ok(response.body.value == 123);
-                        assert.ok(response.body.mocked == true);
-                        done();
-                    });
-
-            });
-
-        });
-    });
+  });
 
 });
-
-

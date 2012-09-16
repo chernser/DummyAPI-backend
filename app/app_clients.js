@@ -1,4 +1,3 @@
-
 var _ = require("underscore");
 
 function CommonClient() {
@@ -14,11 +13,11 @@ CommonClient.prototype.unexpectedResponse = function (response) {
   throw "unexpected response";
 };
 
-CommonClient.prototype.internalError = function(response) {
+CommonClient.prototype.internalError = function (response) {
   throw "internal server error";
 }
 
-CommonClient.prototype.authError = function(response) {
+CommonClient.prototype.authError = function (response) {
   throw "authentication error";
 }
 
@@ -51,20 +50,22 @@ CommonClient.prototype.doReq = function (method, url, content, callback) {
   this.client[method]({
     url:url,
     content:content,
+    headers:{
+      'Content-Type':"application/json"
+    },
     on:on
   });
 
 };
 
-var BackendClient = module.exports.BackendClient = function() {
+var BackendClient = module.exports.BackendClient = function () {
   this.backend_url = 'http://localhost:8000/api/1';
-  this.APPLICATION_NAME = "___Test__Application___";
 
   return _.extend(new CommonClient(), this);
 };
 
-BackendClient.prototype.createApp = function (callback) {
-  this.doReq('post', this.backend_url + '/app', {name:this.APPLICATION_NAME}, callback);
+BackendClient.prototype.createApp = function (name, callback) {
+  this.doReq('post', this.backend_url + '/app', {name:name}, callback);
 };
 
 BackendClient.prototype.deleteApp = function (app_id, callback) {
@@ -110,8 +111,17 @@ var AppApiClient = module.exports.AppApiClient = function () {
   return _.extend(new CommonClient(), this);
 };
 
+AppApiClient.prototype.getAPIInfo = function(api_key, callback) {
+  this.doReq('get', this.api_url + '/?access_token=' + api_key, null, callback);
+};
+
 AppApiClient.prototype.do_ugly_get_auth = function (api_key, user, callback) {
   var url = this.api_url + '/ugly_get_auth/?access_token=' + api_key + '&username=' + user.user_name +
   '&password=' + user.password;
   this.doReq('get', url, null, callback);
 };
+
+AppApiClient.prototype.do_simple_post_auth = function (api_key, user, callback) {
+  var credentials = {user_name:user.user_name, password:user.password};
+  this.doReq('post', this.api_url + '/simple_token_auth?access_token=' + api_key, credentials, callback);
+}

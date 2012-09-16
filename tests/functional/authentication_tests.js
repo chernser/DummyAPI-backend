@@ -5,7 +5,7 @@ var app_clients = require('../../app/app_clients');
 
 
 
-
+var APPLICATION_NAME = "___Test__Application___";
 var bclient = new app_clients.BackendClient();
 var apiClient = new app_clients.AppApiClient();
 
@@ -20,7 +20,7 @@ describe('Authentication API', function () {
 
     async.series([
       function (done) {
-        bclient.createApp(function (response) {
+        bclient.createApp(APPLICATION_NAME, function (response) {
           application = response.content.data;
           done();
         });
@@ -61,7 +61,7 @@ describe('Authentication API', function () {
     });
   });
 
-  it("Should return linked resource merged with user", function (done) {
+  it("do Ugly-get-auth and last should return linked resource merged with user", function (done) {
 
     apiClient.do_ugly_get_auth(application.access_token, user, function (response) {
       var data = response.content.data;
@@ -72,7 +72,7 @@ describe('Authentication API', function () {
     });
   });
 
-  it("should remove link between user and resource and return only user", function(done) {
+  it("should remove link between user and resource and Ugly-get-auth should return only user", function(done) {
     user.resource = '';
     bclient.updateUser(application.id, user, function(response) {
       apiClient.do_ugly_get_auth(application.access_token, user, function (response) {
@@ -84,5 +84,17 @@ describe('Authentication API', function () {
       });
     });
   });
+
+  it("do simple-token-auth and last should return linked resource merged with user", function (done) {
+
+    apiClient.do_simple_post_auth(application.access_token, user, function (response) {
+      var data = response.content.data;
+
+      data.should.have.property('test_field');
+
+      done();
+    });
+  });
+
 
 });
