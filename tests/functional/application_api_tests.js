@@ -47,4 +47,73 @@ describe('Application API', function () {
 
   });
 
+
+  it('should create, get, modify and delete resource instance', function (done) {
+
+    var object_type = {name:"Resource"};
+    var resource = {test_field:"test_value"};
+
+    async.series([
+
+      function (done) {
+        bclient.createObjectType(application.id, object_type, function (response) {
+          object_type = response.content.data;
+          done();
+        });
+      },
+
+      function (done) {
+        apiClient.createResource(application.access_token, object_type.name, resource, function (response) {
+          resource = response.content.data;
+
+          resource.should.have.property('test_field').equal("test_value");
+          done();
+        });
+      },
+
+      function(done) {
+        apiClient.getResource(application.access_token, object_type.name, resource._id, function(response) {
+          response.content.data.should.eql(resource);
+          done();
+        });
+      },
+
+      function(done) {
+        resource.test_field = "another value";
+        apiClient.updateResource(application.access_token, object_type.name, resource._id, resource, function(response) {
+          response.cotent.data.should.eql(resource);
+          done();
+        });
+      },
+
+      function(done) {
+        apiClient.getResource(application.access_token, object_type.name, resource._id, function(response) {
+          response.content.data.should.eql(resource);
+          done();
+        });
+      },
+
+      function(done) {
+        apiClient.deleteResource(application.access_token, object_type, resource._id, function(response) {
+          console.log("resource removed ", response.content.data);
+          done();
+        });
+      }
+
+    ], function () {
+      done();
+    });
+
+  });
+
+  it('should get,modify, delete resource by custom id field', function (done) {
+
+
+  });
+
+  it('should transform resource according proxy function code', function (done) {
+
+
+  });
+
 });

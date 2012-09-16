@@ -65,6 +65,8 @@ describe('Backend Configuration API', function () {
     });
   });
 
+  //TODO: add clone tests
+
   /* User manipulations */
   it('should create, get, modify and delete user', function (done) {
     var user = {user_name:"test_user", password:"s3cret", resource:"Resource", resource_id:"123"};

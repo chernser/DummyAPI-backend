@@ -157,3 +157,19 @@ AppApiClient.prototype.do_simple_post_auth = function (api_key, user, callback) 
   var credentials = {user_name:user.user_name, password:user.password};
   this.doReq('post', this.api_url + '/simple_token_auth?access_token=' + api_key, credentials, callback);
 }
+
+AppApiClient.prototype.createResource = function(api_key, object_type_name, resource, callback) {
+  this.doReq('post', this.api_url + '/' + object_type_name + '/?access_token=' + api_key, resource, callback);
+};
+
+AppApiClient.prototype.getResource = function(api_key, object_type_name, id, callback) {
+  this.doReq('get', this.api_url + '/' + object_type_name + '/' + id + '?access_token=' + api_key, null, callback);
+};
+
+AppApiClient.prototype.updateResource = function(api_key, object_type_name, id, resource, callback) {
+  this.doReq('put', this.api_url + '/' + object_type_name + '/' + id + '?access_token=' + api_key, resource, callback);
+};
+
+AppApiClient.prototype.deleteResource = function(api_key, object_type_name, id, callback) {
+  this.doReq('delete', this.api_url + '/' + object_type_name + '/' + id + '?access_token=' + api_key, resource, callback);
+};
