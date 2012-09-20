@@ -369,7 +369,7 @@ AppStorage.prototype = {
           }
 
           // do clone
-          asyn.series([
+          async.series([
 
             function (done) {
               if (opts.clone_instances === true) {
