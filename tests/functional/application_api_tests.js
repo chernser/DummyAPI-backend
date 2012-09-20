@@ -230,12 +230,47 @@ describe('Application API', function () {
 
   });
 
-  it('should return resource by static route', function (done) {
-
+  it('should create resource base on calculations of id function', function(done) {
     var static_route = { route:'/session', resource:'session',
       id_fun_code:'function id_fun(req) { return {id_field: "id", id: 1}; }'
     };
     var resource_type = {name:'session' };
+    var session = {user_name:"test_user"};
+    async.series([
+
+      function (done) {
+        bclient.createObjectType(application.id, resource_type, function (response) {
+          done();
+        });
+      },
+
+      function (done) {
+        bclient.createStaticRoute(application.id, static_route, function(response) {
+          done();
+        });
+      },
+
+      function (done) {
+        apiClient.doReq('post', apiClient.api_url + static_route.route + '?access_token=' + application.access_token,
+        session,
+        function (response) {
+          session = response.content.data;
+
+          session.should.have.property("id").eql(1);
+          done();
+        });
+      }
+    ], function () {
+      done();
+    });
+  });
+
+  it('should return resource by static route', function (done) {
+
+    var static_route = { route:'/user_session', resource:'user_session',
+      id_fun_code:'function id_fun(req) { return {id_field: "id", id: 1}; }'
+    };
+    var resource_type = {name:'user_session' };
     var session = {id:1, user_name:"test_user"};
     async.series([
 

@@ -438,6 +438,17 @@ AppApi.prototype.handlePost = function (app_id, req, instance, callback) {
     }
 
     var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
+    if (_.isFunction(objectType.id_fun)) {
+      // Patch instance with id
+      try {
+        var id = objectType.id_fun(req);
+        if (!_.isUndefined(id.id_field) && !_.isUndefined(id.id)) {
+          instance[id.id_field] = id.id;
+        }
+      } catch (E) {
+        console.log("Failed to execute id function for route: ", route_info.url);
+      }
+    }
 
     api.app_storage.addObjectInstace(app_id, objectType.name, instance, function (err, saved) {
       api.notifyResourceCreated(app_id, saved);
