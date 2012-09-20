@@ -182,7 +182,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
         var objType = application.objtypes[i];
         var baseUrl = '/api/' + objType.name;
 
-        api_def._resources.push({
+        api_def.resources.push({
           ref:objType.name,
           url:baseUrl
         });
