@@ -12,11 +12,11 @@ var _ = require('underscore');
 var AppApi = module.exports.AppApi = function (app_storage) {
 
   var express = require('express')
-    , socket_io = require('socket.io')
-    , config = require('../config')
-    , api_auth = require('./app_api_auth')
-    , api = this
-    , app = null;
+  , socket_io = require('socket.io')
+  , config = require('../config')
+  , api_auth = require('./app_api_auth')
+  , api = this
+  , app = null;
 
   api.app = app = express.createServer();
   api.app_storage = app_storage;
@@ -86,7 +86,7 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
   // Express.JS
   var ALLOWED_HEADERS = 'Content-Type, X-Parse-REST-API-Key, X-Parse-Application-Id, ' +
-    'Access-Token';
+  'Access-Token';
 
   app.options('*', function (req, res) {
     res.header('Access-Control-Allow-Origin', '*');
@@ -214,19 +214,19 @@ var AppApi = module.exports.AppApi = function (app_storage) {
   var API_PATTERN = /^\/api\/1\/+((\w+\/?)+)/;
 
   app.get(API_PATTERN, middlewares, function (req, res) {
-    api.handleGet(req.app_id, req.params[0], getDefaultCallback(res));
+    api.handleGet(req.app_id, req, getDefaultCallback(res));
   });
 
   app.post(API_PATTERN, middlewares, function (req, res) {
-    api.handlePost(req.app_id, req.params[0], req.body, getDefaultCallback(res));
+    api.handlePost(req.app_id, req, req.body, getDefaultCallback(res));
   });
 
   app.put(API_PATTERN, middlewares, function (req, res) {
-    api.handlePut(req.app_id, req.params[0], req.body, getDefaultCallback(res));
+    api.handlePut(req.app_id, req, req.body, getDefaultCallback(res));
   });
 
   app.delete(API_PATTERN, middlewares, function (req, res) {
-    api.handleDelete(req.app_id, req.params[0], getDefaultCallback(res));
+    api.handleDelete(req.app_id, req, getDefaultCallback(res));
   });
 
   return this;
@@ -277,15 +277,49 @@ AppApi.prototype.getApplicationIdFromReq = function (headers, query, callback) {
 }
 
 
-AppApi.prototype.getObjectTypeByRoute = function (app_id, route_pattern, callback) {
-  this.app_storage.getObjectTypeByRoute(app_id, route_pattern, function (err, objectType) {
-    if (err == 'not_found') {
-      callback(404, null);
-      return;
-    }
+// TODO: may be rework??
+AppApi.prototype.getObjectTypeByRoute = function (app_id, route_info, callback) {
+  var storage = this.app_storage;
 
-    callback(null, objectType);
+  storage.getStaticRoutes(app_id, route_info.url, function (err, routes) {
+    if (err == 'not_found' || _.isEmpty(routes)) {
+      storage.getObjectTypeByRoute(app_id, route_info.route_pattern, function (err, object_type) {
+        if (err == 'not_found') {
+          callback(404, null);
+          return;
+        }
+
+        callback(null, object_type);
+      });
+    } else if (err !== null) {
+      callback(err, null);
+    } else {
+      var route = routes[0];
+
+
+      // Get object type by name
+      storage.getObjectType(app_id, route.resource, function (err, object_type) {
+        if (err == 'not_found') {
+          callback(500, null);
+          return;
+        }
+
+        // Attach id function to object type
+        try {
+          eval(route.id_fun_code);
+          if (!_.isFunction(id_fun)) {
+            throw new Error("id_fun is not function. Check id_fun_code for route: " + route.url);
+          }
+          object_type.id_fun = id_fun;
+          callback(null, object_type);
+        } catch (E) {
+          callback(E, null);
+        }
+      });
+    }
   });
+
+
 };
 
 function getProxy(objectType, defaultProxy) {
@@ -300,11 +334,18 @@ function getProxy(objectType, defaultProxy) {
   }
 }
 
-function getObjectId(id, objectType) {
-  if (typeof id !== 'undefined' && id !== null && id !== '') {
-    return typeof objectType.id_field != 'undefined' ? {id_field:objectType.id_field, id:id} : id;
+function getObjectId(id, objectType, req) {
+
+  if (!_.isUndefined(objectType.id_fun)) {
+    var calculated_id = objectType.id_fun(req);
+    console.log('calculated id: ', calculated_id);
+    return calculated_id;
   } else {
-    return null;
+    if (typeof id !== 'undefined' && id !== null && id !== '') {
+      return typeof objectType.id_field != 'undefined' ? {id_field:objectType.id_field, id:id} : id;
+    } else {
+      return null;
+    }
   }
 }
 
@@ -332,21 +373,21 @@ function getRouteInfoFromUrl(url) {
     part_index += 1;
   }
 
-  return {route_pattern:routePattern, id:id};
+  return {route_pattern:routePattern, id:id, url:url};
 }
 
-AppApi.prototype.handleGet = function (app_id, url, callback) {
+
+AppApi.prototype.handleGet = function (app_id, req, callback) {
   var api = this;
-  var route_info = getRouteInfoFromUrl(url);
-  var route_pattern = route_info.route_pattern;
+  var route_info = getRouteInfoFromUrl(req.params[0]);
   var id = route_info.id;
-  api.getObjectTypeByRoute(app_id, route_pattern, function (err, objectType) {
+  api.getObjectTypeByRoute(app_id, route_info, function (err, objectType) {
     if (err !== null) {
       callback(err, null);
       return;
     }
     var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
-    id = getObjectId(id, objectType);
+    id = getObjectId(id, objectType, req);
     api.app_storage.getObjectInstances(app_id, objectType.name, id, function (err, resources) {
       if (typeof resources != 'undefined' && resources !== null && resources.length >= 0) {
         if (id === null) {
@@ -365,20 +406,19 @@ AppApi.prototype.handleGet = function (app_id, url, callback) {
   });
 };
 
-AppApi.prototype.handlePut = function (app_id, url, instance, callback) {
+AppApi.prototype.handlePut = function (app_id, req, instance, callback) {
   var api = this;
-  var route_info = getRouteInfoFromUrl(url);
-  var route_pattern = route_info.route_pattern;
+  var route_info = getRouteInfoFromUrl(req.params[0]);
   var id = route_info.id;
 
-  api.getObjectTypeByRoute(app_id, route_pattern, function (err, objectType) {
+  api.getObjectTypeByRoute(app_id, route_info, function (err, objectType) {
     if (err !== null) {
       callback(err, null);
       return;
     }
 
     var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
-    id = getObjectId(id, objectType);
+    id = getObjectId(id, objectType, req);
     api.app_storage.saveObjectInstance(app_id, objectType.name, id, instance, function (err, saved) {
       var resource = proxy(saved);
       api.notifyResourceChanged(app_id, saved);
@@ -387,18 +427,28 @@ AppApi.prototype.handlePut = function (app_id, url, instance, callback) {
   });
 };
 
-AppApi.prototype.handlePost = function (app_id, url, instance, callback) {
+AppApi.prototype.handlePost = function (app_id, req, instance, callback) {
   var api = this;
-  var route_info = getRouteInfoFromUrl(url);
-  var route_pattern = route_info.route_pattern;
+  var route_info = getRouteInfoFromUrl(req.params[0]);
 
-  api.getObjectTypeByRoute(app_id, route_pattern, function (err, objectType) {
+  api.getObjectTypeByRoute(app_id, route_info, function (err, objectType) {
     if (err !== null) {
       callback(err, null);
       return;
     }
 
     var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
+    if (_.isFunction(objectType.id_fun)) {
+      // Patch instance with id
+      try {
+        var id = objectType.id_fun(req);
+        if (!_.isUndefined(id.id_field) && !_.isUndefined(id.id)) {
+          instance[id.id_field] = id.id;
+        }
+      } catch (E) {
+        console.log("Failed to execute id function for route: ", route_info.url);
+      }
+    }
 
     api.app_storage.addObjectInstace(app_id, objectType.name, instance, function (err, saved) {
       api.notifyResourceCreated(app_id, saved);
@@ -407,21 +457,20 @@ AppApi.prototype.handlePost = function (app_id, url, instance, callback) {
   });
 };
 
-AppApi.prototype.handleDelete = function (app_id, url, callback) {
+AppApi.prototype.handleDelete = function (app_id, req, callback) {
   var api = this;
-  var route_info = getRouteInfoFromUrl(url);
-  var route_pattern = route_info.route_pattern;
+  var route_info = getRouteInfoFromUrl(req.params[0]);
   var id = route_info.id;
 
-  api.getObjectTypeByRoute(app_id, route_pattern, function (err, objectType) {
+  api.getObjectTypeByRoute(app_id, route_info, function (err, objectType) {
     if (err !== null) {
       callback(err, null);
       return;
     }
-    id = getObjectId(id, objectType);
+    id = getObjectId(id, objectType, req);
     api.app_storage.deleteObjectInstance(app_id, objectType.name, id, function () {
       api.notifyResourceDeleted({id:id, object_type:objectType.name});
-      callback(null, {removed: true});
+      callback(null, {removed:true});
     });
   });
 };

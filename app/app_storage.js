@@ -31,7 +31,8 @@ function first(items) {
 
 
 var util = require("util"),
-  _ = require("underscore");
+_ = require("underscore"),
+async = require("async");
 
 /**
  * AppStorage is DAO class to manipulate everything, that stored in db
@@ -51,7 +52,9 @@ var AppStorage = function (config, db) {
 
   this.db.ensureIndex('applications', {id:1}, {unique:true});
   this.db.ensureIndex('applications', {name:1}, {unique:true});
-  this.db.ensureIndex('event_callbacks', {event_name:1}, {unique:true});
+  this.db.ensureIndex('event_callbacks', {app_id:1, event_name:1}, {unique:true});
+  this.db.ensureIndex('static_routes', {app_id:1, route:1}, {unique:true});
+
   this.db.ensureIndex('sequences', {name:1}, {unique:true});
   this.db.collection('sequences', function (err, collection) {
     collection.insert({name:AppStorage.prototype.APPLICATION_SEQ_NAME, value:1});
@@ -185,14 +188,14 @@ AppStorage.prototype = {
         return;
       }
       collection.findAndModify({name:sequenceName}, {}, {$inc:{ value:1}},
-        function (err, result) {
-          if (err !== null) {
-            callback(err, null);
-            return;
-          }
+      function (err, result) {
+        if (err !== null) {
+          callback(err, null);
+          return;
+        }
 
-          callback(null, result.value);
-        });
+        callback(null, result.value);
+      });
 
     });
   },
@@ -207,6 +210,7 @@ AppStorage.prototype = {
   USER_SEQ_NAME:'userSeqNumber',
   USER_GROUP_SEQ_NAME:'userGroupSeqNumber',
   EVENT_CALLBACKS_COL:'event_callbacks',
+  STATIC_ROUTES_COL:'static_routes',
 
   addApplication:function (application, callback) {
 
@@ -273,6 +277,7 @@ AppStorage.prototype = {
       storage.remove(storage.USER_COL, {app_id:app_id});
       storage.remove(storage.USER_GROUP_COL, {app_id:app_id});
       storage.remove(storage.EVENT_CALLBACKS_COL, {app_id:app_id});
+      storage.remove(storage.STATIC_ROUTES_COL, {app_id:app_id});
       storage.db.collection(storage.getResourceCollectionName(app_id), function (err, collection) {
         collection.drop();
       });
@@ -344,6 +349,9 @@ AppStorage.prototype = {
           application.name = opts.name;
         }
 
+        opts.clone_callbacks = opts.clone_callbacks === false ? false : true;
+        opts.clone_callbacks = opts.clone_static_routes === false ? false : true;
+
         application.access_token = storage.generateAccessToken();
 
         storage.create(storage.APPLICATIONS_COL, application, function (err, saved) {
@@ -352,34 +360,62 @@ AppStorage.prototype = {
             return;
           }
 
-          // TODO: use derefered object or something else to eliminate this ...
-          if (opts.clone_instances === true) {
-            var source_collection_name = storage.getResourceCollectionName(app_id);
-            var target_collection_name = storage.getResourceCollectionName(id);
-            storage.copyCollection(source_collection_name, target_collection_name, {},
-              function (err, result) {
-                if (opts.clone_users === true) {
-                  storage.copyCollectionItems(storage.USER_COL, {app_id:id}, {app_id:app_id},
-                    function (err, result) {
-                      callback(err, application);
-                    });
-                } else {
-                  callback(err, application);
-                }
-              });
-          } else if (opts.clone_users === true) {
-            storage.copyCollectionItems(storage.USER_COL, {app_id:id}, {app_id:app_id},
-              function (err, result) {
-                callback(err, application);
-              });
+          // do clone
+          asyn.series([
 
-          } else {
-            callback(null, application);
-          }
+            function (done) {
+              if (opts.clone_instances === true) {
+                var source_collection_name = storage.getResourceCollectionName(app_id);
+                var target_collection_name = storage.getResourceCollectionName(id);
+                storage.copyCollection(source_collection_name, target_collection_name, {},
+                function (err, result) {
+                  done(err);
+                });
+              } else {
+                done(null);
+              }
+            },
+
+            function (done) {
+              if (opts.clone_users === true) {
+                storage.copyCollectionItems(storage.USER_COL, {app_id:id}, {app_id:app_id},
+                function (err, result) {
+                  done(err);
+                });
+              } else {
+                done(null);
+              }
+            },
+
+            function (done) {
+              if (opts.clone_callbacks === true) {
+                storage.copyCollectionItems(storage.EVENT_CALLBACKS_COL, {app_id:id}, {app_id:app_id},
+                function (err, result) {
+                  done(err);
+                });
+              } else {
+                done(null);
+              }
+
+            },
+
+            function (done) {
+              if (opts.clone_static_routes === true) {
+                storage.copyCollectionItems(storage.STATIC_ROUTES_COL, {app_id:id}, {app_id:app_id},
+                function (err, result) {
+                  done(err);
+                });
+              } else {
+                done(null);
+              }
+            }
+          ],
+          function (err) {
+            //finished
+            callback(err, application);
+          });
         });
       });
-
-
     });
   },
 
@@ -391,16 +427,16 @@ AppStorage.prototype = {
   renewAppAccessToken:function (app_id, callback) {
 
     var storage = this;
-    var query = {id: parseInt(app_id)};
+    var query = {id:parseInt(app_id)};
     var new_access_token = storage.generateAccessToken();
-    var modify = { $set: { access_token: new_access_token}};
-    storage.put(storage.APPLICATIONS_COL, query, modify, function(err, result) {
+    var modify = { $set:{ access_token:new_access_token}};
+    storage.put(storage.APPLICATIONS_COL, query, modify, function (err, result) {
       if (err != null) {
         callback(err, null);
         return;
       }
 
-      callback(null, {access_token: new_access_token});
+      callback(null, {access_token:new_access_token});
     });
   },
 
@@ -892,7 +928,7 @@ AppStorage.prototype = {
 
   updateEventCallback:function (app_id, event_callback, callback) {
     var storage = this;
-    var query = {app_id:parseInt(app_id), event_name: event_callback.event_name };
+    var query = {app_id:parseInt(app_id), event_name:event_callback.event_name };
 
     if (_.isEmpty(event_callback.event_name)) {
       callback('not_found', null);
@@ -922,38 +958,76 @@ AppStorage.prototype = {
     storage.remove(storage.EVENT_CALLBACKS_COL, query, callback);
   },
 
-  // Db Migration updates
-  migrate:function (appId) {
+
+  addStaticRoute:function (app_id, route, callback) {
     var storage = this;
+    app_id = parseInt(app_id);
 
-    storage.getApplication(appId, function (application) {
-      if (application == null) {
-        console.log("Failed to migrate db for application: ", appId);
-        return;
-      }
+    if (!_.isString(route.route) || !_.isString(route.resource) || !_.isString(route.id_fun_code) ||
+    _.isEmpty(route.route) || _.isEmpty(route.resource) || _.isEmpty(route.id_fun_code)) {
+      callback('invalid', null);
+      return;
+    }
 
+    var object = {
+      app_id:app_id,
+      route: ('/' + route.route).replace('//', '/'),
+      resource:route.resource,
+      id_fun_code:route.id_fun_code
+    };
 
-      storage.setDefaultRoutePatternForObjectTypes(application, storage);
-      storage.setAccessToken(application, storage);
-
-      storage.saveApplication(application);
-    });
-
+    storage.create(storage.STATIC_ROUTES_COL, object, callback);
   },
 
-  setDefaultRoutePatternForObjectTypes:function (application, storage) {
-    for (var index in application.objtypes) {
-      if (typeof application.objtypes[index].route_pattern == 'undefined') {
-        application.objtypes[index].route_pattern = '/' + application.objtypes[index].name + '/{id}/';
-      }
+  saveStaticRoute:function (app_id, route, callback) {
+    var storage = this;
+    app_id = parseInt(app_id);
+
+    if (!_.isString(route.route) || _.isEmpty(route.route)) {
+      callback('invalid', null);
     }
+
+    var query = {
+      app_id:app_id,
+      route: ('/' + route.route).replace('//', '/')
+    };
+
+    var object = { $set:{} };
+
+    if (_.isString(route.resource) && !_.isEmpty(route.resource)) {
+      object.$set.resource = route.resource;
+    }
+
+    if (_.isString(route.id_fun_code) && !_.isEmpty(route.id_fun_code)) {
+      object.$set.id_fun_code = route.id_fun_code;
+    }
+
+    storage.put(storage.STATIC_ROUTES_COL, query, object, callback);
   },
 
+  getStaticRoutes:function (app_id, route_name, callback) {
+    var storage = this;
+    app_id = parseInt(app_id);
 
-  setAccessToken:function (application, storage) {
-    if (typeof application.access_token == 'undefined') {
-      application.access_token = storage.crypto.randomBytes(24).toString("hex");
-      console.log("application:access_token set: ", application.access_token);
+    var query = {app_id:app_id};
+    if (_.isString(route_name)) {
+      query.route = ('/' + route_name).replace('//', '/');
     }
+
+    storage.get(storage.STATIC_ROUTES_COL, query, function(err, routes) {
+      callback(err, routes);
+    } );
+  },
+
+  deleteStaticRoute:function (app_id, route_id, callback) {
+    var storage = this;
+    app_id = parseInt(app_id);
+
+    var query = {app_id:app_id};
+    if (_.isString(route_id)) {
+      query.route = ('/' + route_id).replace('//', '/');
+    }
+
+    storage.remove(storage.STATIC_ROUTES_COL, query, callback);
   }
 };
