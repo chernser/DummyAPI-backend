@@ -231,4 +231,52 @@ describe('Backend Configuration API', function () {
 
   //TODO: same for event callbacks
 
+
+  // Static routes
+  it('should create, get, modify, delete static routes', function (done) {
+
+    var id_fun_code = 'function id_fun(req) { return 1; }';
+    var route = { route:'/user', resource:'user', id_fun_code:id_fun_code};
+    async.series([
+      function (done) {
+        bclient.createStaticRoute(application.id, route, function (response) {
+          route = response.content.data;
+          route.should.have.property('app_id').eql(application.id);
+          done();
+        });
+      },
+
+      function (done) {
+        bclient.getStaticRoute(application.id, route.route, function (response) {
+          response.content.data.should.eql(route);
+          done();
+        });
+      },
+
+      function (done) {
+        route.resource = 'cur_user';
+        route.id_fun_code = 'function id_fun(req) { return 2; }';
+        bclient.updateStaticRoute(application.id, route, function (response) {
+          response.content.data.should.eql(route);
+          done();
+        });
+      },
+
+      function (done) {
+        bclient.getStaticRoute(application.id, route.route, function (response) {
+          response.content.data.should.eql(route);
+          done();
+        });
+      },
+
+      function(done) {
+        bclient.deleteStaticRoute(application.id, route.route, function(response) {
+          done();
+        });
+      }
+    ],
+    function () {
+      done();
+    });
+  });
 });

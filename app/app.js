@@ -7,9 +7,9 @@
  */
 
 var express = require('express'),
-  config = require('../config'),
-  mongo_db = require('mongodb'),
-  _ = require('underscore');
+config = require('../config'),
+mongo_db = require('mongodb'),
+_ = require('underscore');
 
 
 var app = module.exports = express.createServer();
@@ -58,45 +58,80 @@ app.configure('production', function () {
 
 
 // API
-var DEFAULT_CALLBACK = function (res, single_result) {
+var DEFAULT_CALLBACK = function (res, single_result, debug_route) {
   if (_.isUndefined(single_result)) {
     single_result = true;
   }
+  var is_debug = !_.isUndefined(debug_route);
+
 
   return function (err, objects) {
+    if (is_debug) {
+      console.log("debug: ", single_result, debug_route, err, objects);
+    }
+
     if (err == 'not_found') {
+      if (is_debug) {
+        console.log("not found");
+      }
       res.send(404);
-      return;
     } else if (err == 'invalid') {
+      if (is_debug) {
+        console.log("invalid");
+      }
+
       res.send(400);
-      return;
     } else if (err == 'already_exists') {
+      if (is_debug) {
+        console.log("exists");
+      }
+
       res.send(409);
-      return;
     } else if (typeof err != 'undefined' && err !== null) {
       console.log(err, ':', new Error().stack);
       res.send(500);
-      return;
-    }
+    } else {
+      if (single_result == true) {
 
-    if (single_result == true) {
+        if (_.isArray(objects) && _.isEmpty(objects)) {
+          if (is_debug) {
+            console.log("empty");
+          }
+          res.send(404);
+          return;
+        } else if (_.isArray(objects)) {
+          if (is_debug) {
+            console.log("data: ", objects[0]);
+          }
 
-      if (_.isArray(objects) && _.isEmpty(objects)) {
-        res.send(404);
-        return;
-      } else if (_.isArray(objects)) {
-        res.json(objects[0]);
-        return;
+          if (is_debug) {
+            var obj = objects[0];
+            res.json(obj);
+          } else {
+            res.json(objects[0]);
+
+          }
+          return;
+        }
+      }
+
+      try {
+        res.json(objects);
+      } catch (E) {
+        console.log(res, E);
+        res.send(500);
       }
     }
-    res.json(objects);
 
+    if (is_debug) {
+      console.log("bad");
+    }
 
   };
 };
 
 var ALLOWED_HEADERS = 'Content-Type, X-Parse-REST-API-Key, X-Parse-Application-Id, ' +
-  'Access-Token';
+'Access-Token';
 
 app.options('*', function (req, res) {
   res.header('Access-Control-Allow-Origin', '*');
@@ -119,12 +154,12 @@ var middleware = [addHeadersMiddleware];
 
 // General backend info
 var api_info = {
-  version: app.version,
-  applications: '/api/1/app/'
+  version:app.version,
+  applications:'/api/1/app/'
 
 };
 
-app.get('/api/1/?', middleware, function(req, res) {
+app.get('/api/1/?', middleware, function (req, res) {
   res.json(api_info);
 });
 
@@ -235,7 +270,7 @@ app.delete('/api/1/app/:app_id/user_group/:id', middleware, function (req, res) 
 // Object types
 app.get('/api/1/app/:app_id/object_type/:name?', middleware, function (req, res) {
   app.app_storage.getObjectType(req.params.app_id, req.params.name != null ? req.params.name : '*',
-    DEFAULT_CALLBACK(res, !_.isUndefined(req.params.name)));
+  DEFAULT_CALLBACK(res, !_.isUndefined(req.params.name)));
 });
 
 app.post('/api/1/app/:app_id/object_type/?', middleware, function (req, res) {
@@ -283,42 +318,42 @@ var CALLBACK_WITH_CALLBACK = function (res, callback) {
 app.post('/api/1/app/:app_id/object/:name/?', middleware, function (req, res) {
   delete req.body._id;
   app.app_storage.addObjectInstace(req.params.app_id, req.params.name, req.body,
-    CALLBACK_WITH_CALLBACK(res, function (objects) {
-      app.app_api.notifyResourceCreated(req.params.app_id, objects);
-    }));
+  CALLBACK_WITH_CALLBACK(res, function (objects) {
+    app.app_api.notifyResourceCreated(req.params.app_id, objects);
+  }));
 });
 
 app.get('/api/1/app/:app_id/object/:name/:id?', middleware, function (req, res) {
   app.app_storage.getObjectInstances(req.params.app_id, req.params.name, req.params.id,
-    DEFAULT_CALLBACK(res, !_.isUndefined(req.params.id)));
+  DEFAULT_CALLBACK(res, !_.isUndefined(req.params.id)));
 });
 
 app.put('/api/1/app/:app_id/object/:name/:id', middleware, function (req, res) {
   app.app_storage.saveObjectInstance(req.params.app_id, req.params.name, req.params.id, req.body,
-    CALLBACK_WITH_CALLBACK(res, function (objects) {
-      app.app_api.notifyResourceChanged(req.params.app_id, objects);
-    }));
+  CALLBACK_WITH_CALLBACK(res, function (objects) {
+    app.app_api.notifyResourceChanged(req.params.app_id, objects);
+  }));
 });
 
 app.delete('/api/1/app/:app_id/object/:name/:id?', middleware, function (req, res) {
   app.app_storage.deleteObjectInstance(req.params.app_id, req.params.name, req.params.id,
-    CALLBACK_WITH_CALLBACK(res, function () {
-      app.app_api.notifyResourceDeleted(req.params.app_id, {id:req.params.id, object_type:req.params.name});
-    }));
+  CALLBACK_WITH_CALLBACK(res, function () {
+    app.app_api.notifyResourceDeleted(req.params.app_id, {id:req.params.id, object_type:req.params.name});
+  }));
 });
 
 
 // Socket.IO events
 app.post('/api/1/app/:app_id/event_callback/?', middleware, function (req, res) {
   app.app_storage.addEventCallback(req.params.app_id, req.body,
-    CALLBACK_WITH_CALLBACK(res, function (callback) {
-      app.app_api.updateEventCallback(req.params.app_id, callback);
-    }));
+  CALLBACK_WITH_CALLBACK(res, function (callback) {
+    app.app_api.updateEventCallback(req.params.app_id, callback);
+  }));
 });
 
 app.get('/api/1/app/:app_id/event_callback/:event_name?', middleware, function (req, res) {
   app.app_storage.getEventCallbacks(req.params.app_id, req.params.event_name,
-    DEFAULT_CALLBACK(res, !_.isUndefined(req.params.event_name)));
+  DEFAULT_CALLBACK(res, !_.isUndefined(req.params.event_name)));
 });
 
 app.put('/api/1/app/:app_id/event_callback/:event_name', middleware, function (req, res) {
@@ -326,29 +361,49 @@ app.put('/api/1/app/:app_id/event_callback/:event_name', middleware, function (r
   event_callback.event_name = req.params.event_name;
 
   app.app_storage.updateEventCallback(req.params.app_id, req.body, CALLBACK_WITH_CALLBACK(res,
-    function (callback) {
-      app.app_api.updateEventCallback(req.params.app_id, callback);
-    }));
+  function (callback) {
+    app.app_api.updateEventCallback(req.params.app_id, callback);
+  }));
 });
 
 app.delete('/api/1/app/:app_id/event_callback/:event_name', middleware, function (req, res) {
   app.app_storage.deleteEventCallback(req.params.app_id, req.params.event_name, CALLBACK_WITH_CALLBACK(res,
-    function () {
-      app.app_api.removeEventCallback(req.params.app_id, req.params.event_name);
-    }));
+  function () {
+    app.app_api.removeEventCallback(req.params.app_id, req.params.event_name);
+  }));
+});
+
+// Static routes
+app.post('/api/1/app/:app_id/static_route/?', middleware, function (req, res) {
+  app.app_storage.addStaticRoute(req.params.app_id, req.body, DEFAULT_CALLBACK(res));
+});
+
+app.get('/api/1/app/:app_id/static_route/:route?', middleware, function (req, res) {
+  app.app_storage.getStaticRoutes(req.params.app_id, req.params.route,
+  DEFAULT_CALLBACK(res, !_.isUndefined(req.params.route)));
+});
+
+app.put('/api/1/app/:app_id/static_route/:route', middleware, function (req, res) {
+  var route = _.extend(req.body, {route:req.params.route});
+  app.app_storage.saveStaticRoute(req.params.app_id, route, DEFAULT_CALLBACK(res));
+});
+
+app.delete('/api/1/app/:app_id/static_route/:route', middleware, function (req, res) {
+  app.app_storage.deleteStaticRoute(req.params.app_id, req.params.route, DEFAULT_CALLBACK(res));
 });
 
 // === Application Startup Logic ====
+// TODO: rewrite using 'async'
 app.state = new (require('events')).EventEmitter();
 
 app.state.on('start', function () {
 
   // Init db
   var db_server = new mongo_db.Server(
-    config.mongo.server,
-    config.mongo.port,
-    {auto_reconnect:config.mongo.reconnect,
-      poolSize:config.mongo.poolSize}
+  config.mongo.server,
+  config.mongo.port,
+  {auto_reconnect:config.mongo.reconnect,
+    poolSize:config.mongo.poolSize}
   );
 
   app.db = new mongo_db.Db(config.mongo.db, db_server, {native_parser:config.mongo.useNative});

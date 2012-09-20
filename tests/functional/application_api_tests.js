@@ -169,7 +169,7 @@ describe('Application API', function () {
     var code = "function proxy(resource) {  "
     + " resource.mocked = true; "
     + " return resource; } ";
-    var object_type = {name:"Resource_03", proxy_fun_code: code};
+    var object_type = {name:"Resource_03", proxy_fun_code:code};
 
     var resource = {test_field:"test_value"};
 
@@ -230,4 +230,46 @@ describe('Application API', function () {
 
   });
 
+  it('should return resource by static route', function (done) {
+
+    var static_route = { route:'/session', resource:'session',
+      id_fun_code:'function id_fun(req) { return {id_field: "id", id: 1}; }'
+    };
+    var resource_type = {name:'session' };
+    var session = {id:1, user_name:"test_user"};
+    async.series([
+
+      function (done) {
+        bclient.createObjectType(application.id, resource_type, function (response) {
+          done();
+        });
+      },
+
+      function (done) {
+        bclient.createStaticRoute(application.id, static_route, function(response) {
+          done();
+        });
+      },
+
+      function (done) {
+        apiClient.createResource(application.access_token, resource_type.name, session, function (response) {
+          session = response.content.data;
+          done();
+        });
+      },
+
+
+      function (done) {
+        apiClient.doReq('get', apiClient.api_url + static_route.route + '?access_token=' + application.access_token,
+        null,
+        function (response) {
+          var result = response.content.data;
+          result.should.eql(session);
+          done();
+        });
+      }
+    ], function () {
+      done();
+    });
+  });
 });

@@ -15,10 +15,19 @@ CommonClient.prototype.unexpectedResponse = function (response) {
 
 CommonClient.prototype.internalError = function (response) {
   throw "internal server error";
-}
+};
 
 CommonClient.prototype.authError = function (response) {
   throw "authentication error";
+};
+
+CommonClient.prototype.notFoundError = function (response) {
+  console.log(response);
+  throw "something not found";
+};
+
+CommonClient.prototype.conflictError = function (response) {
+  throw "conflict";
 }
 
 CommonClient.prototype.ignoreOkResponse = {
@@ -28,6 +37,8 @@ CommonClient.prototype.ignoreOkResponse = {
   304:CommonClient.prototype.defaultCallback,
   401:CommonClient.prototype.authError,
   500:CommonClient.prototype.internalError,
+  404:CommonClient.prototype.notFoundError,
+  409:CommonClient.prototype.conflictError,
   response:CommonClient.prototype.unexpectedResponse
 };
 
@@ -35,12 +46,12 @@ CommonClient.prototype.doReq = function (method, url, content, callback) {
 
   var on = null;
   if (_.isFunction(callback)) {
-    on = {
+    on = _.extend(CommonClient.prototype.ignoreOkResponse, {
       200:callback,
       202:callback,
       204:callback,
       304:callback
-    }
+    });
   } else if (_.isObject(callback)) {
     on = callback;
   } else {
@@ -124,7 +135,7 @@ BackendClient.prototype.createResource = function (app_id, object_type, instance
   this.doReq('post', this.backend_url + '/app/' + app_id + '/object/' + object_type + '/', instance, callback);
 };
 
-BackendClient.prototype.getResource = function(app_id, object_type, id, callback) {
+BackendClient.prototype.getResource = function (app_id, object_type, id, callback) {
   this.doReq('get', this.backend_url + '/app/' + app_id + '/object/' + object_type + '/' + id, null, callback);
 }
 
@@ -136,7 +147,24 @@ BackendClient.prototype.deleteResource = function (app_id, object_type, instance
   this.doReq('delete', this.backend_url + '/app/' + app_id + '/object/' + object_type + '/' + instance_id, null, callback);
 };
 
+BackendClient.prototype.createStaticRoute = function (app_id, route, callback) {
+  this.doReq('post', this.backend_url + '/app/' + app_id + '/static_route/', route, callback);
+};
 
+BackendClient.prototype.getStaticRoute = function (app_id, route, callback) {
+  this.doReq('get', this.backend_url + '/app/' + app_id + '/static_route' + route, null, callback);
+};
+
+BackendClient.prototype.updateStaticRoute = function (app_id, route, callback) {
+  this.doReq('put', this.backend_url + '/app/' + app_id + '/static_route' + route.route,
+  route, callback);
+};
+
+BackendClient.prototype.deleteStaticRoute = function (app_id, route, callback) {
+  this.doReq('delete', this.backend_url + '/app/' + app_id + '/static_route' + route, null, callback);
+};
+
+// Application API Client
 var AppApiClient = module.exports.AppApiClient = function () {
   this.api_url = 'http://localhost:8001/api/1';
 
@@ -158,18 +186,18 @@ AppApiClient.prototype.do_simple_post_auth = function (api_key, user, callback) 
   this.doReq('post', this.api_url + '/simple_token_auth?access_token=' + api_key, credentials, callback);
 }
 
-AppApiClient.prototype.createResource = function(api_key, object_type_name, resource, callback) {
+AppApiClient.prototype.createResource = function (api_key, object_type_name, resource, callback) {
   this.doReq('post', this.api_url + '/' + object_type_name + '/?access_token=' + api_key, resource, callback);
 };
 
-AppApiClient.prototype.getResource = function(api_key, object_type_name, id, callback) {
+AppApiClient.prototype.getResource = function (api_key, object_type_name, id, callback) {
   this.doReq('get', this.api_url + '/' + object_type_name + '/' + id + '?access_token=' + api_key, null, callback);
 };
 
-AppApiClient.prototype.updateResource = function(api_key, object_type_name, id, resource, callback) {
+AppApiClient.prototype.updateResource = function (api_key, object_type_name, id, resource, callback) {
   this.doReq('put', this.api_url + '/' + object_type_name + '/' + id + '?access_token=' + api_key, resource, callback);
 };
 
-AppApiClient.prototype.deleteResource = function(api_key, object_type_name, id, callback) {
+AppApiClient.prototype.deleteResource = function (api_key, object_type_name, id, callback) {
   this.doReq('delete', this.api_url + '/' + object_type_name + '/' + id + '?access_token=' + api_key, null, callback);
 };
