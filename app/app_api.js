@@ -214,21 +214,34 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
 
   // Resource manipulations (keep them last)
-  var API_PATTERN = /^\/api\/1\/+((\w+\/?)+)/;
+  // var API_PATTERN = /^\/api\/1\/+((\w+\/?)+)/;
 
-  app.get(API_PATTERN, middlewares, function (req, res) {
+  function parseUrl(url, prefix) {
+    if (url.indexOf(prefix) == 0) {
+      url = url.substr(prefix.length);
+    }
+
+    return [url];
+  }
+
+  app.get("*", middlewares, function (req, res) {
+    req.params = parseUrl(req.path, req.app_info.routes_prefix || '/api/1');
+    console.log(">>>>> ", req.params);
     api.handleGet(req.app_id, req, getDefaultCallback(res));
   });
 
-  app.post(API_PATTERN, middlewares, function (req, res) {
+  app.post("*", middlewares, function (req, res) {
+    req.params = parseUrl(req.path, req.app_info.routes_prefix || '/api/1');
     api.handlePost(req.app_id, req, req.body, getDefaultCallback(res));
   });
 
-  app.put(API_PATTERN, middlewares, function (req, res) {
+  app.put("*", middlewares, function (req, res) {
+    req.params = parseUrl(req.path, req.app_info.routes_prefix || '/api/1');
     api.handlePut(req.app_id, req, req.body, getDefaultCallback(res));
   });
 
-  app.delete(API_PATTERN, middlewares, function (req, res) {
+  app.delete("*", middlewares, function (req, res) {
+    req.params = parseUrl(req.path, req.app_info.routes_prefix || '/api/1');
     api.handleDelete(req.app_id, req, getDefaultCallback(res));
   });
 
@@ -359,6 +372,11 @@ function getRouteInfoFromUrl(url) {
   var no_of_parts = parts.length;
   var id = null;
 
+  console.log("url parts: ", parts);
+  if (parts[0] == '') {
+    ++part_index;
+  }
+
   while (part_index < no_of_parts && parts[part_index] !== '') {
     // Resource name
     routePattern += parts[part_index] + "/";
@@ -384,6 +402,7 @@ AppApi.prototype.handleGet = function (app_id, req, callback) {
   var api = this;
   var route_info = getRouteInfoFromUrl(req.params[0]);
   var id = route_info.id;
+  console.log("route_info", route_info);
   api.getObjectTypeByRoute(app_id, route_info, function (err, objectType) {
     if (err !== null) {
       callback(err, null);
