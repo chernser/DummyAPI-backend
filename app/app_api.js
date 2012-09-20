@@ -45,11 +45,13 @@ var AppApi = module.exports.AppApi = function (app_storage) {
   api.io.configure(function () {
     api.io.set('authorization', function (handshakeData, callback) {
       handshakeData.client_id = handshakeData.query.client_id;
-      api.getApplicationIdFromReq(handshakeData.headers, handshakeData.query, function (err, app_id) {
+      api.getApplicationInfoFromReq(handshakeData.headers, handshakeData.query, function (err, app_info) {
         if (err != null) {
           callback(null, false);
         } else {
-          handshakeData.app_id = app_id;
+          console.log("socket. info, ", app_info);
+          handshakeData.app_id = app_info.id;
+          handshakeData.app_info = app_info;
           callback(null, true); // error first callback style
         }
       });
@@ -115,14 +117,15 @@ var AppApi = module.exports.AppApi = function (app_storage) {
   };
 
   var getApplicationIdMiddleware = api.getApplicationIdMiddleware = function (req, res, next) {
-    api.getApplicationIdFromReq(req.headers, req.query, function (err, app_id) {
+    api.getApplicationInfoFromReq(req.headers, req.query, function (err, app_info) {
       if (err == 'not_found') {
         res.send(400);
       } else if (err != null) {
         res.send(500, err);
       } else {
 
-        req.app_id = app_id;
+        req.app_id = app_info.id;
+        req.app_info = app_info;
         next();
       }
     });
@@ -250,7 +253,7 @@ AppApi.prototype.stop = function () {
 };
 
 
-AppApi.prototype.getApplicationIdFromReq = function (headers, query, callback) {
+AppApi.prototype.getApplicationInfoFromReq = function (headers, query, callback) {
   var api = this;
   var access_token = query.access_token;
   if (typeof access_token != 'string') {
@@ -261,17 +264,17 @@ AppApi.prototype.getApplicationIdFromReq = function (headers, query, callback) {
   if (typeof access_token != 'string' || access_token == '') {
     callback('not_found', null);
   } else {
-    api.app_storage.getAppIdByAccessToken(access_token, function (err, app_id) {
-      console.log("application client: ", app_id)
+    api.app_storage.getAppInfoByAccessToken(access_token, function (err, app_info) {
+      console.log("application info: ", app_info)
       if (err != null) {
         callback(err, null);
         return;
-      } else if (app_id == null) {
+      } else if (app_info == null) {
         callback('not_found', null);
         return;
       }
 
-      callback(null, app_id);
+      callback(null, app_info);
     });
   }
 }
@@ -528,17 +531,17 @@ AppApi.prototype.delClientSocket = function (socket) {
 };
 
 AppApi.prototype.notifyApplicationClients = function (app_id, event, client_id) {
-
   var sockets = this.app_client_sockets[app_id];
   if (typeof sockets == 'undefined') {
     sockets = [];
   }
 
+
+  var notify_all = _.isUndefined(client_id) || client_id == null;
   var notified = 0;
-  var socket = null;
   for (var index in sockets) {
     socket = sockets[index];
-    if (_.isUndefined(client_id) || client_id == socket.handshake.client_id) {
+    if (notify_all || client_id == socket.handshake.client_id) {
       socket.emit(event.name, event.data);
       ++notified;
     }

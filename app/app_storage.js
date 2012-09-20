@@ -229,6 +229,10 @@ AppStorage.prototype = {
       application.id = app_id;
       application.object_types = [];
       application.access_token = storage.generateAccessToken();
+      application.routes_prefix = application.routes_prefix;
+      if (_.isUndefined(application.routes_prefix) || _.isEmpty(application.routes_prefix)) {
+        application.routes_prefix = '/api/1';
+      }
       storage.create(storage.APPLICATIONS_COL, application, callback);
     });
   },
@@ -248,8 +252,12 @@ AppStorage.prototype = {
       object.$set.object_types = application.object_types;
     }
 
-    if (typeof application.description == 'string') {
+    if (_.isString(application.description)) {
       object.$set.description = application.description;
+    }
+
+    if (_.isString(application.routes_prefix)) {
+      object.$set.routes_prefix = application.routes_prefix;
     }
 
     storage.put(storage.APPLICATIONS_COL, {id:app_id}, object, function (err, saved) {
@@ -436,42 +444,44 @@ AppStorage.prototype = {
         return;
       }
 
+      storage.clearAppInfoCache(app_id);
+
       callback(null, {access_token:new_access_token});
     });
   },
 
-  application_access_tokens:{},
+  application_infos:{},
 
-  updateAppAccessTokens:function (app_id, old_access_token, access_token) {
-    try {
-      delete this.application_access_tokens[old_access_token];
-    } catch (e) {
+  clearAppInfoCache:function (app_id) {
+
+    for (var index in this.application_infos) {
+      if (this.application_infos[index].id == app_id) {
+        this.application_infos[index] = null;
+        return;
+      }
     }
-
-    this.application_access_tokens[access_token] = app_id;
   },
 
-  getAppIdByAccessToken:function (access_token, callback) {
-    var app_id = this.application_access_tokens[access_token];
-    if (typeof  app_id == 'number') {
-      callback(null, app_id);
+  getAppInfoByAccessToken:function (access_token, callback) {
+    var app_info = this.application_infos[access_token];
+    if (!_.isUndefined(app_info) && app_info !== null) {
+      callback(null, app_info);
     } else {
       var storage = this;
       storage.get(storage.APPLICATIONS_COL, {access_token:access_token}, function (err, items) {
-        if (err != null) {
+        if (err != null || _.isEmpty(items)) {
           callback(err, null);
           return;
         }
 
-        var app_id = items != null && items.length > 0 ? items[0].id : null;
-        for (var index in storage.application_access_tokens) {
-          if (storage.application_access_tokens[index] == app_id) {
-            storage.application_access_tokens[index] = null;
-          }
-        }
+        var application = items[0];
+        var app_info = {
+            id: application.id,
+            routes_prefix: application.routes_prefix || '/api/1'
+        };
 
-        storage.application_access_tokens[access_token] == app_id;
-        callback(null, app_id);
+        storage.application_infos[access_token] == app_info;
+        callback(null, app_info);
       });
     }
 
@@ -971,7 +981,7 @@ AppStorage.prototype = {
 
     var object = {
       app_id:app_id,
-      route: ('/' + route.route).replace('//', '/'),
+      route:('/' + route.route).replace('//', '/'),
       resource:route.resource,
       id_fun_code:route.id_fun_code
     };
@@ -989,7 +999,7 @@ AppStorage.prototype = {
 
     var query = {
       app_id:app_id,
-      route: ('/' + route.route).replace('//', '/')
+      route:('/' + route.route).replace('//', '/')
     };
 
     var object = { $set:{} };
@@ -1014,9 +1024,9 @@ AppStorage.prototype = {
       query.route = ('/' + route_name).replace('//', '/');
     }
 
-    storage.get(storage.STATIC_ROUTES_COL, query, function(err, routes) {
+    storage.get(storage.STATIC_ROUTES_COL, query, function (err, routes) {
       callback(err, routes);
-    } );
+    });
   },
 
   deleteStaticRoute:function (app_id, route_id, callback) {
@@ -1029,5 +1039,26 @@ AppStorage.prototype = {
     }
 
     storage.remove(storage.STATIC_ROUTES_COL, query, callback);
+  },
+
+  // TODO: move to some place
+  migrate_db:function (done) {
+    var storage = this;
+
+    async.series([
+      function (done) {
+        var query = { routes_prefix:{$exists:false}};
+        var patch = { $set:{routes_prefix:"/api/1"}};
+        storage.put(storage.APPLICATIONS_COL, query, patch, function (err, result) {
+          console.log("Result of fixing application route prefix: ", err, result);
+          done();
+        });
+
+      }
+
+    ], function () {
+      done();
+    });
+
   }
 };

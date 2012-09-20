@@ -9,7 +9,8 @@
 var express = require('express'),
 config = require('../config'),
 mongo_db = require('mongodb'),
-_ = require('underscore');
+_ = require('underscore'),
+async = require('async');
 
 
 var app = module.exports = express.createServer();
@@ -170,7 +171,8 @@ app.get('/api/1/app/:app_id?', middleware, function (req, res) {
 app.post('/api/1/app/?', middleware, function (req, res) {
   var application = {
     name:req.body.name,
-    description:req.body.description
+    description:req.body.description,
+    routes_prefix:req.body.routes_prefix
   };
   app.app_storage.addApplication(application, DEFAULT_CALLBACK(res));
 });
@@ -179,7 +181,8 @@ app.put('/api/1/app/:app_id', middleware, function (req, res) {
   var application = {
     id:req.params.app_id,
     notify_proxy_fun:req.body.notify_proxy_fun,
-    description:req.body.description
+    description:req.body.description,
+    routes_prefix:req.body.routes_prefix
   };
   app.app_storage.saveApplication(application, DEFAULT_CALLBACK(res));
 });
@@ -423,6 +426,7 @@ app.state.on('start', function () {
           app.state.emit('db_init_error');
           return;
         }
+
         app.state.emit('db_ready');
       });
     } else {
@@ -448,7 +452,10 @@ app.state.on('db_ready', function () {
   app.app_storage = new (require('./app_storage')).AppStorage(config, app.db);
   app.app_api = new (require('./app_api')).AppApi(app.app_storage);
 
-  app.state.emit('every_thing_ready');
+  app.app_storage.migrate_db(function() {
+    app.state.emit('every_thing_ready');
+  });
+
 });
 
 app.state.on('every_thing_ready', function () {
