@@ -350,10 +350,16 @@ function getProxy(objectType, defaultProxy) {
   }
 }
 
+// Utils, which handy to have in proxy functions
+var proxy_fun_utils = {
+  _: _, // underscore
+  uuid: require('node-uuid') // to generate unique objects
+};
+
 function getObjectId(id, objectType, req) {
 
   if (!_.isUndefined(objectType.id_fun)) {
-    var calculated_id = objectType.id_fun(req);
+    var calculated_id = objectType.id_fun(req, proxy_fun_utils);
     console.log('calculated id: ', calculated_id);
     return calculated_id;
   } else {
@@ -463,10 +469,12 @@ AppApi.prototype.handlePost = function (app_id, req, instance, callback) {
     if (_.isFunction(objectType.id_fun)) {
       // Patch instance with id
       try {
-        var id = objectType.id_fun(req);
+        var id = objectType.id_fun(req, proxy_fun_utils);
         if (!_.isUndefined(id.id_field) && !_.isUndefined(id.id)) {
           instance[id.id_field] = id.id;
         }
+
+        console.log("Patched object instance: ", instance, id );
       } catch (E) {
         console.log("Failed to execute id function for route: ", route_info.url);
       }
