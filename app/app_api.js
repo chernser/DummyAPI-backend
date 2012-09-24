@@ -417,15 +417,20 @@ AppApi.prototype.handleGet = function (app_id, req, callback) {
     var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
     id = getObjectId(id, objectType, req);
     api.app_storage.getObjectInstances(app_id, objectType.name, id, function (err, resources) {
-      if (typeof resources != 'undefined' && resources !== null && resources.length >= 0) {
-        if (id === null) {
-          var response = [];
-          for (var index in resources) {
-            response.push(proxy(resources[index]));
+      if (!_.isUndefined(resources) && !_.isNull(resources) && !_.isEmpty(resources)) {
+        try {
+          if (id === null) {
+            var response = [];
+            for (var index in resources) {
+              response.push(proxy(resources[index]));
+            }
+            callback(null, response);
+          } else {
+            callback(null, proxy(resources[0]));
           }
-          callback(null, response);
-        } else {
-          callback(null, proxy(resources[0]));
+        } catch (E) {
+          console.log("Exception while calling object type proxy function: ", E, resources);
+          callback(E, null);
         }
       } else {
         callback(null, null);
