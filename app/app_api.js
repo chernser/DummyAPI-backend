@@ -696,7 +696,7 @@ AppApi.prototype.callEventCallback = function (app_id, event_name, context) {
     var event_callback_fun = api.event_callbacks[app_id][event_name];
     if (_.isFunction(event_callback_fun)) {
       console.log("Callback for event: ", event_name, " triggered");
-      var result = event_callback_fun(context);
+        var result = event_callback_fun(context);
 
       // TODO: make response API more complex
       if (!_.isUndefined(result) && result !== null) {
