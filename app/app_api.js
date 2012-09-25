@@ -226,7 +226,6 @@ var AppApi = module.exports.AppApi = function (app_storage) {
 
   app.get("*", middlewares, function (req, res) {
     req.params = parseUrl(req.path, req.app_info.routes_prefix || '/api/1');
-    console.log(">>>>> ", req.params);
     api.handleGet(req.app_id, req, getDefaultCallback(res));
   });
 
@@ -419,7 +418,7 @@ AppApi.prototype.handleGet = function (app_id, req, callback) {
     api.app_storage.getObjectInstances(app_id, objectType.name, id, function (err, resources) {
       if (!_.isUndefined(resources) && !_.isNull(resources) && !_.isEmpty(resources)) {
         try {
-          if (id === null) {
+          if (id === null || id.list === true) {
             var response = [];
             for (var index in resources) {
               response.push(proxy(resources[index]));
