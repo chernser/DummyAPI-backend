@@ -251,6 +251,10 @@ AppApi.prototype.DEFAULT_RESOURCE_PROXY = function (resource) {
   return resource;
 };
 
+AppApi.prototype.DEFAULT_DECODE_FUN = function(resource) {
+  return resource;
+}
+
 
 AppApi.prototype.start = function () {
   var app = this.app;
@@ -338,12 +342,18 @@ AppApi.prototype.getObjectTypeByRoute = function (app_id, route_info, callback) 
 };
 
 function getProxy(objectType, defaultProxy) {
-  if (typeof objectType.proxy_fun_code != 'undefined') {
+  if (!_.isEmpty(objectType.proxy_fun_code)) {
     var eval_result = eval(objectType.proxy_fun_code);
-    if (typeof proxy == 'undefined') {
-      return defaultProxy;
-    }
-    return proxy;
+    return _.isFunction(proxy) ? proxy : defaultProxy;
+  } else {
+    return defaultProxy;
+  }
+}
+
+function getDecodeObjectFun(objectType, defaultProxy) {
+  if (!_.isEmpty(objectType.decode_fun_code)) {
+    var eval_result = eval(objectType.decode_fun_code);
+    return _.isFunction(decode) ? decode: defaultProxy;
   } else {
     return defaultProxy;
   }
@@ -450,8 +460,9 @@ AppApi.prototype.handlePut = function (app_id, req, instance, callback) {
     }
 
     var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
+    var decodeFun = getDecodeObjectFun(objectType, api.DEFAULT_DECODE_FUN);
     id = getObjectId(id, objectType, req);
-    api.app_storage.saveObjectInstance(app_id, objectType.name, id, instance, function (err, saved) {
+    api.app_storage.saveObjectInstance(app_id, objectType.name, id, decodeFun(instance), function (err, saved) {
       var resource = proxy(saved);
       api.notifyResourceChanged(app_id, saved);
       callback(null, resource);
@@ -470,6 +481,7 @@ AppApi.prototype.handlePost = function (app_id, req, instance, callback) {
     }
 
     var proxy = getProxy(objectType, api.DEFAULT_RESOURCE_PROXY);
+    var decodeFun = getDecodeObjectFun(objectType, api.DEFAULT_DECODE_FUN);
     if (_.isFunction(objectType.id_fun)) {
       // Patch instance with id
       try {
@@ -484,7 +496,7 @@ AppApi.prototype.handlePost = function (app_id, req, instance, callback) {
       }
     }
 
-    api.app_storage.addObjectInstace(app_id, objectType.name, instance, function (err, saved) {
+    api.app_storage.addObjectInstace(app_id, objectType.name, decodeFun(instance), function (err, saved) {
       api.notifyResourceCreated(app_id, saved);
       callback(err, proxy(saved));
     });

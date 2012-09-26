@@ -281,7 +281,8 @@ app.post('/api/1/app/:app_id/object_type/?', middleware, function (req, res) {
     name:req.body.name,
     route_pattern:req.body.route_pattern,
     id_field:req.body.id_field,
-    proxy_fun_code:req.body.proxy_fun_code
+    proxy_fun_code:req.body.proxy_fun_code,
+    decode_fun_code: req.body.decode_fun_code
   };
   console.log("params: ", req.params);
   app.app_storage.addObjectType(req.params.app_id, object_type, DEFAULT_CALLBACK(res));
@@ -293,7 +294,8 @@ app.put('/api/1/app/:app_id/object_type/:name', middleware, function (req, res) 
     name:req.params.name,
     route_pattern:req.body.route_pattern,
     id_field:req.body.id_field,
-    proxy_fun_code:req.body.proxy_fun_code
+    proxy_fun_code:req.body.proxy_fun_code,
+    decode_fun_code: req.body.decode_fun_code
   };
   app.app_storage.saveObjectType(req.params.app_id, object_type, DEFAULT_CALLBACK(res));
 });
@@ -397,7 +399,7 @@ app.delete('/api/1/app/:app_id/static_route/:route', middleware, function (req, 
 
 // === Application Startup Logic ====
 // TODO: rewrite using 'async'
-app.state = new (require('events')).EventEmitter();
+app.state = new (require("events")).EventEmitter();
 
 app.state.on('start', function () {
 

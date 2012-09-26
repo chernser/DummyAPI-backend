@@ -759,9 +759,10 @@ AppStorage.prototype = {
           var existing = application.object_types[index];
 
           // Copy allowed to change fields
-          existing.route_pattern = objectType.route_pattern;
-          existing.proxy_fun_code = objectType.proxy_fun_code;
-          existing.id_field = objectType.id_field;
+          existing.route_pattern = objectType.route_pattern || existing.route_pattern;
+          existing.proxy_fun_code = objectType.proxy_fun_code || existing.proxy_fun_code;
+          existing.id_field = objectType.id_field || existing.id_field;
+          existing.decode_fun_code = objectType.decode_fun_code || existing.decode_fun_code;
 
           // finally copy existing to response object
           objectType = existing;
