@@ -210,6 +210,7 @@ AppStorage.prototype = {
   USER_SEQ_NAME:'userSeqNumber',
   USER_GROUP_SEQ_NAME:'userGroupSeqNumber',
   EVENT_CALLBACKS_COL:'event_callbacks',
+  EVENT_TEMPLATES_COL:'event_templates',
   STATIC_ROUTES_COL:'static_routes',
 
   addApplication:function (application, callback) {
@@ -969,6 +970,62 @@ AppStorage.prototype = {
     storage.remove(storage.EVENT_CALLBACKS_COL, query, callback);
   },
 
+  //event templates
+  addEventTemplate:function(app_id, event_template, callback){
+    var storage = this;
+
+    var object = {
+      app_id:parseInt(app_id),
+      event_name:event_template.event_name,
+      event_data:event_template.event_data,
+      is_enabled:true
+    };
+    console.log(object);
+    storage.create(storage.EVENT_TEMPLATES_COL, object, callback);
+  },
+
+  getEventTemplates:function(app_id, event_template_name, callback){
+    var storage = this;
+    var query = {app_id:parseInt(app_id) };
+
+    if (!_.isEmpty(event_template_name)) {
+      query.event_name = event_template_name;
+    }
+
+    storage.get(storage.EVENT_TEMPLATES_COL, query, callback);
+  },
+
+  updateEventTemplate:function(app_id, event_template, callback){
+    var storage = this;
+    var query = {app_id:parseInt(app_id), event_template_name:event_template.template_name };
+
+    if (_.isEmpty(event_template.template_name)) {
+      callback('not_found', null);
+      return;
+    }
+
+    var object = { $set:{}};
+    if (!_.isEmpty(event_template.payload)) {
+      object.$set.payload = event_template.payload;
+    }
+
+    if (_.isBoolean(event_template.is_enabled)) {
+      object.$set.is_enabled = event_template.is_enabled;
+    }
+
+    storage.put(storage.EVENT_TEMPLATES_COL, query, object, callback);
+  },
+
+  deleteEventTemplate:function(app_id, event_template_name, callback){
+    var storage = this;
+    var query = {app_id:parseInt(app_id), event_template_name:event_template_name};
+    if (_.isEmpty(event_template_name)) {
+      callback('not_found', null);
+      return;
+    }
+
+    storage.remove(storage.EVENT_TEMPLATES_COL, query, callback);
+  },
 
   addStaticRoute:function (app_id, route, callback) {
     var storage = this;

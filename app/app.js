@@ -169,6 +169,7 @@ app.get('/api/1/app/:app_id?', middleware, function (req, res) {
 });
 
 app.post('/api/1/app/?', middleware, function (req, res) {
+  //console.log(req.body);
   var application = {
     name:req.body.name,
     description:req.body.description,
@@ -376,6 +377,43 @@ app.delete('/api/1/app/:app_id/event_callback/:event_name', middleware, function
   function () {
     app.app_api.removeEventCallback(req.params.app_id, req.params.event_name);
   }));
+});
+
+// Event Templates
+app.post('/api/1/app/:app_id/event_template/?', middleware, function (req, res) {
+  console.log(req.params.app_id);
+  console.log(req.body);
+  //res.send('event post');
+  app.app_storage.addEventTemplate(req.params.app_id, req.body, DEFAULT_CALLBACK(res));
+});
+
+//var event_template = {
+  var templates = [{
+    'event_name':'event:test',
+    'id': '1231231231sd',
+    'event_data': '{\
+      "_self" : {"ref" : "active_call" , "url" : "/agent_session/active_call"}, \
+      "_hash" : "1ak81ka81",\
+      "_actions" : [ {"rel" :"answer"} , {"rel" : "reject"}],\
+      "state" :  "offered",\
+      "call_info":{"ref" : "call_info","url":"/agent_session/active_call/call_info"}\
+    }'
+  }];
+//};
+app.get('/api/1/app/:app_id/event_template/:event_template_name?', middleware, function (req, res) {
+  app.app_storage.getEventTemplates(req.params.app_id, req.params.event_template_name,
+  DEFAULT_CALLBACK(res, !_.isUndefined(req.params.event_template_name)));
+});
+
+app.put('/api/1/app/:app_id/event_template/:event_template_name', middleware, function (req, res) {
+  console.log("PUT event template");
+
+  }));
+
+});
+
+app.delete('/api/1/app/:app_id/event_template/:event_template_name', middleware, function (req, res) {
+
 });
 
 // Static routes
