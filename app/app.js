@@ -407,13 +407,12 @@ app.get('/api/1/app/:app_id/event_template/:event_template_name?', middleware, f
 
 app.put('/api/1/app/:app_id/event_template/:event_template_name', middleware, function (req, res) {
   console.log("PUT event template");
-
-  }));
+  app.app_storage.updateEventTemplate(req.params.app_id, req.body, DEFAULT_CALLBACK(res));
 
 });
 
 app.delete('/api/1/app/:app_id/event_template/:event_template_name', middleware, function (req, res) {
-
+  app.app_storage.deleteEventTemplate(req.params.app_id, req.params.event_template_name, DEFAULT_CALLBACK(res));
 });
 
 // Static routes

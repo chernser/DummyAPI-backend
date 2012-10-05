@@ -997,28 +997,29 @@ AppStorage.prototype = {
 
   updateEventTemplate:function(app_id, event_template, callback){
     var storage = this;
-    var query = {app_id:parseInt(app_id), event_template_name:event_template.template_name };
+    var query = {app_id:parseInt(app_id), _id:this.ObjectID(event_template._id) };
 
-    if (_.isEmpty(event_template.template_name)) {
+    if (_.isEmpty(event_template.event_name)) {
       callback('not_found', null);
       return;
     }
 
     var object = { $set:{}};
-    if (!_.isEmpty(event_template.payload)) {
-      object.$set.payload = event_template.payload;
+    if (!_.isEmpty(event_template.event_data)) {
+      object.$set.event_data = event_template.event_data;
     }
 
-    if (_.isBoolean(event_template.is_enabled)) {
-      object.$set.is_enabled = event_template.is_enabled;
+    if (!_.isEmpty(event_template.event_name)) {
+      object.$set.event_name = event_template.event_name;
     }
 
     storage.put(storage.EVENT_TEMPLATES_COL, query, object, callback);
   },
 
   deleteEventTemplate:function(app_id, event_template_name, callback){
+    console.log("delete template");
     var storage = this;
-    var query = {app_id:parseInt(app_id), event_template_name:event_template_name};
+    var query = {app_id:parseInt(app_id), event_name:event_template_name};
     if (_.isEmpty(event_template_name)) {
       callback('not_found', null);
       return;
@@ -1027,6 +1028,7 @@ AppStorage.prototype = {
     storage.remove(storage.EVENT_TEMPLATES_COL, query, callback);
   },
 
+  // Static routes
   addStaticRoute:function (app_id, route, callback) {
     var storage = this;
     app_id = parseInt(app_id);
