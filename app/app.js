@@ -408,8 +408,6 @@ app.get('/api/1/app/:app_id/event_template/:event_template_name?', middleware, f
 app.put('/api/1/app/:app_id/event_template/:event_template_name', middleware, function (req, res) {
   console.log("PUT event template");
 
-  }));
-
 });
 
 app.delete('/api/1/app/:app_id/event_template/:event_template_name', middleware, function (req, res) {
