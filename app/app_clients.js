@@ -164,6 +164,24 @@ BackendClient.prototype.deleteStaticRoute = function (app_id, route, callback) {
   this.doReq('delete', this.backend_url + '/app/' + app_id + '/static_route' + route, null, callback);
 };
 
+// Event Templates
+BackendClient.prototype.createEventTemplate = function (app_id, route, callback) {
+  this.doReq('post', this.backend_url + '/app/' + app_id + '/event_template/', route, callback);
+};
+
+BackendClient.prototype.getEventTemplate = function (app_id, route, callback) {
+  this.doReq('get', this.backend_url + '/app/' + app_id + '/event_template' + route, null, callback);
+};
+
+BackendClient.prototype.updateEventTemplate = function (app_id, route, callback) {
+  this.doReq('put', this.backend_url + '/app/' + app_id + '/event_template' + '/' + route.event_name,
+  route, callback);
+};
+
+BackendClient.prototype.deleteEventTemplate = function (app_id, route, callback) {
+  this.doReq('delete', this.backend_url + '/app/' + app_id + '/event_template' + route, null, callback);
+};
+
 // Application API Client
 var AppApiClient = module.exports.AppApiClient = function () {
   this.api_url = 'http://localhost:8001/api/1';

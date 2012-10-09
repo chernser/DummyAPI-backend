@@ -232,6 +232,54 @@ describe('Backend Configuration API', function () {
   //TODO: same for event callbacks
 
 
+  // Event Templates
+
+  it('should create, get, modify, delete event templates', function (done) {
+
+    var event_template_data = { 
+                                'event_name':'event:functionaltest1',
+                                'event_data': '{"key" : "value"}'
+                              };
+    this._id = null;
+    var self = this;
+    async.series([
+      function (done) {
+        bclient.createEventTemplate(application.id, event_template_data, function (response) {
+          event_template_data = response.content.data;
+          event_template_data.should.have.property('app_id').eql(application.id);
+          self._id = response.content.data._id;
+          done();
+        });
+      },
+
+      function (done) {
+        bclient.getEventTemplate(application.id, '/' + event_template_data.event_name, function (response) {
+          response.content.data.should.eql(event_template_data);
+          done();
+        });
+      },
+
+      function (done) {
+        event_template_data._id = self._id;
+        event_template_data.event_name = 'event:functionaltest_2';
+        event_template_data.event_data = '{"key2":"value2"}';
+        bclient.updateEventTemplate(application.id, event_template_data, function (response) {
+          response.content.data.should.eql(event_template_data);
+          done();
+        });
+      },
+
+      function(done) {
+        bclient.deleteEventTemplate(application.id, '/' + event_template_data.event_name, function(response) {
+          done();
+        });
+      }
+    ],
+    function () {
+      done();
+    });
+  });
+  
   // Static routes
   it('should create, get, modify, delete static routes', function (done) {
 
