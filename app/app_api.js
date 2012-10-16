@@ -343,7 +343,12 @@ AppApi.prototype.getObjectTypeByRoute = function (app_id, route_info, callback) 
 
 function getProxy(objectType, defaultProxy) {
   if (!_.isEmpty(objectType.proxy_fun_code)) {
-    var eval_result = eval(objectType.proxy_fun_code);
+    try {
+      eval(objectType.proxy_fun_code);
+    } catch (E) {
+      console.log("Failed to eval function: ", objectType.proxy_fun_code, E.toString());
+      return defaultProxy;
+    }
     return _.isFunction(proxy) ? proxy : defaultProxy;
   } else {
     return defaultProxy;
@@ -598,7 +603,7 @@ AppApi.prototype.send_event = function (app_id, eventName, eventData, client_id,
 
   api.app_storage.getApplication(app_id, function (err, application) {
     var proxy = getNotifyProxy(application);
-    var event = proxy({name:eventName.trim(), type:'event'}, eventData);
+    var event = proxy({name:eventName, type:'event'}, eventData);
 
     api.all_events.emit('vent', event);
     var result = api.notifyApplicationClients(app_id, event, !_.isFunction(client_id) ? client_id : null);
