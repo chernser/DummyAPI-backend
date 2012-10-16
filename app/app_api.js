@@ -468,9 +468,14 @@ AppApi.prototype.handlePut = function (app_id, req, instance, callback) {
     var decodeFun = getDecodeObjectFun(objectType, api.DEFAULT_DECODE_FUN);
     id = getObjectId(id, objectType, req);
     api.app_storage.saveObjectInstance(app_id, objectType.name, id, decodeFun(instance), function (err, saved) {
-      var resource = proxy(saved);
-      api.notifyResourceChanged(app_id, saved);
-      callback(null, resource);
+      try {
+        var resource = proxy(saved);
+        api.notifyResourceChanged(app_id, saved);
+        callback(null, resource);
+      } catch (E) {
+        console.log("Failed to call proxy function for ", objectType, E.toString());
+        callback(E, null);
+      }
     });
   });
 };
