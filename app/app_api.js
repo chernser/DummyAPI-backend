@@ -598,7 +598,7 @@ AppApi.prototype.send_event = function (app_id, eventName, eventData, client_id,
 
   api.app_storage.getApplication(app_id, function (err, application) {
     var proxy = getNotifyProxy(application);
-    var event = proxy({name:eventName, type:'event'}, eventData);
+    var event = proxy({name:eventName.trim(), type:'event'}, eventData);
 
     api.all_events.emit('vent', event);
     var result = api.notifyApplicationClients(app_id, event, !_.isFunction(client_id) ? client_id : null);
