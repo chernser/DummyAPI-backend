@@ -73,6 +73,15 @@ AppStorage.prototype = {
   dummyCallback:function () {
   },
 
+  createIndex: function(collection_name, fields_list, is_unique) {
+    var index, fields = {};
+    for (index in fields_list) {
+      fields[fields_list[index]] = 1;
+    }
+    var opts = { unique: is_unique};
+    this.db.ensureIndex(collection_name, fields, opts);
+  },
+
   create:function (collection_name, object, callback) {
     if (typeof callback != 'function') {
       callback = this.dummyCallback;
@@ -105,7 +114,6 @@ AppStorage.prototype = {
       callback = this.dummyCallback;
     }
 
-
     var storage = this;
     storage.db.collection(collection_name, function (err, collection) {
       if (err != null) {
@@ -114,6 +122,31 @@ AppStorage.prototype = {
       }
 
       collection.find(query_obj, function (err, cursor) {
+        if (err != null) {
+          callback(err, null);
+          return;
+        }
+
+        cursor.toArray(function (err, items) {
+          callback(err, items);
+        });
+      })
+    });
+  },
+
+  getFields: function(collection_name, query, fields, callback) {
+    if (typeof callback != 'function') {
+      callback = this.dummyCallback;
+    }
+
+    var storage = this;
+    storage.db.collection(collection_name, function (err, collection) {
+      if (err != null) {
+        callback(err, null);
+        return;
+      }
+
+      collection.find(query_obj, fields, function (err, cursor) {
         if (err != null) {
           callback(err, null);
           return;

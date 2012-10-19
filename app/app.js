@@ -433,6 +433,8 @@ app.delete('/api/1/app/:app_id/static_route/:route', middleware, function (req, 
   app.app_storage.deleteStaticRoute(req.params.app_id, req.params.route, DEFAULT_CALLBACK(res));
 });
 
+
+
 // === Application Startup Logic ====
 // TODO: rewrite using 'async'
 app.state = new (require("events")).EventEmitter();
