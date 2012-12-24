@@ -305,6 +305,46 @@ app.delete('/api/1/app/:app_id/object_type/:name', middleware, function (req, re
   app.app_storage.deleteObjectType(req.params.app_id, req.params.name, DEFAULT_CALLBACK(res));
 });
 
+// Development testing
+// TODO: move to utils
+function text_to_function(function_body) {
+  try {
+    var tmp = {};
+    (function(global) {
+      eval('var fun = ' + function_body + ';');
+      global.fun = fun;
+    })(tmp);
+    return tmp.fun;
+  } catch (E) {
+    return null;
+  }
+}
+
+app.post('/api/1/app/:app_id/object_type/:name/test_get/?', middleware, function(req, res) {
+   var instance_id = req.body.instance_id;
+
+  app.app_storage.getObjectInstances(req.params.app_id, req.params.name, instance_id,  function(error, instances) {
+    if (error != null) {
+      res.send(500);
+      return;
+    }
+
+    var instance, index, results = [];
+    var fun = text_to_function(req.body.function_body);
+    if (fun === null) {
+      res.send(400, '');
+      return;
+    }
+
+    for (index in instances) {
+      instance = instances[index];
+
+      results.push(fun(instance));
+    }
+    res.json(results);
+  });
+});
+
 // Object instance management
 
 //TODO: rework!!!

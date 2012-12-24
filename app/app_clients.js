@@ -164,6 +164,10 @@ BackendClient.prototype.deleteStaticRoute = function (app_id, route, callback) {
   this.doReq('delete', this.backend_url + '/app/' + app_id + '/static_route' + route, null, callback);
 };
 
+BackendClient.prototype.testGet = function(app_id, object_type, test_obj, callback) {
+  this.doReq('post', this.backend_url + '/app/' + app_id + '/object_type/' + object_type + '/test_get', test_obj, callback);
+};
+
 // Event Templates
 BackendClient.prototype.createEventTemplate = function (app_id, route, callback) {
   this.doReq('post', this.backend_url + '/app/' + app_id + '/event_template/', route, callback);

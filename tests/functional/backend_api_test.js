@@ -327,4 +327,45 @@ describe('Backend Configuration API', function () {
       done();
     });
   });
+
+  it('should return result of test function', function(done) {
+
+    var object_type = { name:"Resource_03", id_field:'id'};
+    var resource = { id:1, value:"123"};
+    var function_body = ' function proxy(resource) { resource.val = 1111; return resource; } ';
+    var test_obj = {
+      instance_id: null,
+      function_body: function_body
+    };
+
+    async.series([
+      function (done) {
+        bclient.createObjectType(application.id, object_type, function (response) {
+          done();
+        });
+      },
+
+      function (done) {
+        bclient.createResource(application.id, object_type.name, resource, function (response) {
+          resource = response.content.data;
+
+          resource.should.have.property('id').eql(1);
+          resource.should.have.property('value').equal("123");
+          done();
+        });
+      },
+
+      function (done) {
+        bclient.testGet(application.id, object_type.name, test_obj, function (response) {
+          var results = response.content.data;
+
+          results[0].should.have.property('val').eql(1111);
+          done();
+        });
+      }
+    ],
+    function () {
+      done();
+    });
+  });
 });
